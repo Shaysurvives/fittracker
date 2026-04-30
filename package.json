@@ -1,0 +1,16 @@
+{
+  "name": "fittrack-pro",
+  "version": "1.0.0",
+  "description": "Personal fat-loss & workout tracker — cloud edition (Postgres)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
+  }
+}
