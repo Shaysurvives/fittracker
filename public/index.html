@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,7 +59,8 @@
       'ftp:meals': '/api/meals',
       'ftp:water': '/api/water',
       'ftp:measurements': '/api/measurements',
-      'ftp:streak': '/api/streak'
+      'ftp:streak': '/api/streak',
+      'ftp:customFoods': '/api/customFoods'
     };
 
     let saveQueue = Promise.resolve();
@@ -136,38 +136,365 @@
     const ACCENT_DARK = "#65a30d";
     const KCAL_PER_KG_FAT = 7700;
 
+    // 250+ foods, organized by sub-category for searchability.
+    // All values are realistic estimates (sources: USDA, IFCT, common Indian recipe estimates).
     const FOOD_DB = [
-      // Indian
-      { name: "Chapati (1)", cal: 104, p: 3.1, c: 18, f: 2.5, cat: "Indian" },
-      { name: "Rice, cooked (1 cup)", cal: 206, p: 4.3, c: 45, f: 0.4, cat: "Indian" },
-      { name: "Dal (1 bowl)", cal: 198, p: 12, c: 30, f: 4, cat: "Indian" },
-      { name: "Paneer (100g)", cal: 296, p: 18, c: 4, f: 24, cat: "Indian" },
-      { name: "Idli (2 pcs)", cal: 78, p: 3, c: 17, f: 0.2, cat: "Indian" },
-      { name: "Dosa, plain (1)", cal: 168, p: 4, c: 28, f: 4, cat: "Indian" },
-      { name: "Sambar (1 bowl)", cal: 130, p: 6, c: 22, f: 2, cat: "Indian" },
-      { name: "Curd (1 cup)", cal: 98, p: 11, c: 12, f: 2.5, cat: "Indian" },
-      { name: "Poha (1 plate)", cal: 270, p: 5, c: 50, f: 6, cat: "Indian" },
-      { name: "Upma (1 plate)", cal: 250, p: 6, c: 45, f: 5, cat: "Indian" },
-      { name: "Roti + Sabzi", cal: 320, p: 9, c: 50, f: 9, cat: "Indian" },
-      { name: "Chicken Curry (100g)", cal: 220, p: 22, c: 6, f: 12, cat: "Indian" },
-      { name: "Biryani (1 plate)", cal: 480, p: 16, c: 70, f: 14, cat: "Indian" },
-      // Global
-      { name: "Chicken breast (100g)", cal: 165, p: 31, c: 0, f: 3.6, cat: "Global" },
-      { name: "Egg, whole (1)", cal: 78, p: 6, c: 0.6, f: 5, cat: "Global" },
-      { name: "Egg whites (3)", cal: 51, p: 11, c: 0.7, f: 0.2, cat: "Global" },
-      { name: "Oats (50g)", cal: 190, p: 7, c: 33, f: 3, cat: "Global" },
-      { name: "Banana (1)", cal: 105, p: 1.3, c: 27, f: 0.4, cat: "Global" },
-      { name: "Apple (1)", cal: 95, p: 0.5, c: 25, f: 0.3, cat: "Global" },
-      { name: "Almonds (10)", cal: 70, p: 2.6, c: 2.5, f: 6, cat: "Global" },
-      { name: "Peanut Butter (1 tbsp)", cal: 94, p: 3.5, c: 3, f: 8, cat: "Global" },
-      { name: "Whey scoop (30g)", cal: 120, p: 24, c: 3, f: 1.5, cat: "Global" },
-      { name: "Milk (1 cup)", cal: 150, p: 8, c: 12, f: 8, cat: "Global" },
-      { name: "Salmon (100g)", cal: 208, p: 20, c: 0, f: 13, cat: "Global" },
-      { name: "Sweet Potato (1)", cal: 112, p: 2, c: 26, f: 0.1, cat: "Global" },
-      { name: "Broccoli (1 cup)", cal: 55, p: 3.7, c: 11, f: 0.6, cat: "Global" },
-      { name: "Greek Yogurt (1 cup)", cal: 130, p: 17, c: 9, f: 4, cat: "Global" },
-      { name: "Avocado (1/2)", cal: 160, p: 2, c: 9, f: 15, cat: "Global" },
-      { name: "Tuna (100g)", cal: 116, p: 26, c: 0, f: 1, cat: "Global" }
+      // ───── Indian — Breads & Roti ─────
+      { name: "Chapati / Roti (1)", cal: 104, p: 3.1, c: 18, f: 2.5, cat: "Indian Breads" },
+      { name: "Phulka (1)", cal: 71, p: 2.5, c: 14, f: 0.5, cat: "Indian Breads" },
+      { name: "Tandoori Roti (1)", cal: 110, p: 3, c: 20, f: 2, cat: "Indian Breads" },
+      { name: "Naan, plain (1)", cal: 260, p: 9, c: 45, f: 5, cat: "Indian Breads" },
+      { name: "Butter Naan (1)", cal: 320, p: 9, c: 45, f: 12, cat: "Indian Breads" },
+      { name: "Garlic Naan (1)", cal: 290, p: 9, c: 46, f: 9, cat: "Indian Breads" },
+      { name: "Plain Paratha (1)", cal: 260, p: 5, c: 36, f: 11, cat: "Indian Breads" },
+      { name: "Aloo Paratha (1)", cal: 290, p: 6, c: 40, f: 12, cat: "Indian Breads" },
+      { name: "Gobi Paratha (1)", cal: 270, p: 6, c: 38, f: 11, cat: "Indian Breads" },
+      { name: "Paneer Paratha (1)", cal: 320, p: 11, c: 36, f: 14, cat: "Indian Breads" },
+      { name: "Methi Paratha (1)", cal: 250, p: 6, c: 35, f: 10, cat: "Indian Breads" },
+      { name: "Lachha Paratha (1)", cal: 300, p: 6, c: 40, f: 13, cat: "Indian Breads" },
+      { name: "Bhatura (1)", cal: 360, p: 6, c: 50, f: 15, cat: "Indian Breads" },
+      { name: "Puri (1)", cal: 100, p: 2, c: 13, f: 4.5, cat: "Indian Breads" },
+      { name: "Kulcha (1)", cal: 270, p: 7, c: 45, f: 6, cat: "Indian Breads" },
+      { name: "Missi Roti (1)", cal: 130, p: 5, c: 22, f: 2.5, cat: "Indian Breads" },
+      { name: "Bajra Roti (1)", cal: 95, p: 3, c: 18, f: 1, cat: "Indian Breads" },
+      { name: "Jowar Roti (1)", cal: 90, p: 3, c: 19, f: 0.7, cat: "Indian Breads" },
+      { name: "Ragi Roti (1)", cal: 100, p: 3, c: 20, f: 1.2, cat: "Indian Breads" },
+      { name: "Pav (1)", cal: 130, p: 4, c: 25, f: 1.5, cat: "Indian Breads" },
+
+      // ───── Indian — Rice & Grains ─────
+      { name: "White Rice, cooked (1 cup)", cal: 206, p: 4.3, c: 45, f: 0.4, cat: "Indian Rice & Grains" },
+      { name: "Brown Rice, cooked (1 cup)", cal: 218, p: 5, c: 46, f: 1.6, cat: "Indian Rice & Grains" },
+      { name: "Jeera Rice (1 cup)", cal: 240, p: 4, c: 45, f: 5, cat: "Indian Rice & Grains" },
+      { name: "Veg Pulao (1 cup)", cal: 270, p: 6, c: 45, f: 7, cat: "Indian Rice & Grains" },
+      { name: "Veg Biryani (1 plate)", cal: 380, p: 10, c: 65, f: 10, cat: "Indian Rice & Grains" },
+      { name: "Chicken Biryani (1 plate)", cal: 480, p: 22, c: 65, f: 14, cat: "Indian Rice & Grains" },
+      { name: "Mutton Biryani (1 plate)", cal: 540, p: 24, c: 65, f: 18, cat: "Indian Rice & Grains" },
+      { name: "Egg Biryani (1 plate)", cal: 420, p: 16, c: 60, f: 12, cat: "Indian Rice & Grains" },
+      { name: "Hyderabadi Dum Biryani (1 plate)", cal: 520, p: 22, c: 68, f: 16, cat: "Indian Rice & Grains" },
+      { name: "Curd Rice (1 cup)", cal: 220, p: 7, c: 35, f: 5, cat: "Indian Rice & Grains" },
+      { name: "Lemon Rice (1 cup)", cal: 230, p: 4, c: 40, f: 6, cat: "Indian Rice & Grains" },
+      { name: "Tamarind Rice / Pulihora (1 cup)", cal: 250, p: 4, c: 42, f: 7, cat: "Indian Rice & Grains" },
+      { name: "Tomato Rice (1 cup)", cal: 230, p: 4, c: 42, f: 5, cat: "Indian Rice & Grains" },
+      { name: "Bisi Bele Bath (1 cup)", cal: 280, p: 9, c: 42, f: 8, cat: "Indian Rice & Grains" },
+      { name: "Khichdi (1 bowl)", cal: 280, p: 10, c: 45, f: 6, cat: "Indian Rice & Grains" },
+
+      // ───── Indian — Dals & Curries (veg) ─────
+      { name: "Dal Tadka (1 bowl)", cal: 198, p: 12, c: 30, f: 4, cat: "Indian Dal & Curry" },
+      { name: "Dal Fry (1 bowl)", cal: 220, p: 12, c: 28, f: 7, cat: "Indian Dal & Curry" },
+      { name: "Dal Makhani (1 bowl)", cal: 290, p: 11, c: 30, f: 14, cat: "Indian Dal & Curry" },
+      { name: "Yellow Dal (1 bowl)", cal: 180, p: 12, c: 26, f: 3, cat: "Indian Dal & Curry" },
+      { name: "Sambar (1 bowl)", cal: 130, p: 6, c: 22, f: 2, cat: "Indian Dal & Curry" },
+      { name: "Rasam (1 bowl)", cal: 60, p: 2, c: 9, f: 1.5, cat: "Indian Dal & Curry" },
+      { name: "Chana Masala (1 bowl)", cal: 270, p: 12, c: 35, f: 9, cat: "Indian Dal & Curry" },
+      { name: "Chole (1 bowl)", cal: 260, p: 12, c: 34, f: 8, cat: "Indian Dal & Curry" },
+      { name: "Rajma (1 bowl)", cal: 240, p: 13, c: 36, f: 6, cat: "Indian Dal & Curry" },
+      { name: "Kadhi (1 bowl)", cal: 180, p: 6, c: 18, f: 9, cat: "Indian Dal & Curry" },
+      { name: "Paneer Butter Masala (1 bowl)", cal: 380, p: 14, c: 14, f: 30, cat: "Indian Dal & Curry" },
+      { name: "Kadai Paneer (1 bowl)", cal: 340, p: 14, c: 12, f: 26, cat: "Indian Dal & Curry" },
+      { name: "Palak Paneer (1 bowl)", cal: 280, p: 14, c: 10, f: 20, cat: "Indian Dal & Curry" },
+      { name: "Shahi Paneer (1 bowl)", cal: 360, p: 14, c: 14, f: 28, cat: "Indian Dal & Curry" },
+      { name: "Matar Paneer (1 bowl)", cal: 290, p: 13, c: 16, f: 20, cat: "Indian Dal & Curry" },
+      { name: "Aloo Gobi (1 bowl)", cal: 180, p: 5, c: 22, f: 9, cat: "Indian Dal & Curry" },
+      { name: "Aloo Matar (1 bowl)", cal: 200, p: 5, c: 28, f: 8, cat: "Indian Dal & Curry" },
+      { name: "Bhindi Masala (1 bowl)", cal: 160, p: 4, c: 18, f: 9, cat: "Indian Dal & Curry" },
+      { name: "Baingan Bharta (1 bowl)", cal: 160, p: 4, c: 14, f: 11, cat: "Indian Dal & Curry" },
+      { name: "Mixed Veg Curry (1 bowl)", cal: 180, p: 5, c: 22, f: 8, cat: "Indian Dal & Curry" },
+      { name: "Veg Korma (1 bowl)", cal: 280, p: 7, c: 20, f: 18, cat: "Indian Dal & Curry" },
+      { name: "Malai Kofta (2 pcs + gravy)", cal: 380, p: 10, c: 22, f: 28, cat: "Indian Dal & Curry" },
+      { name: "Mushroom Masala (1 bowl)", cal: 200, p: 6, c: 14, f: 14, cat: "Indian Dal & Curry" },
+      { name: "Methi Malai Matar (1 bowl)", cal: 260, p: 7, c: 18, f: 18, cat: "Indian Dal & Curry" },
+
+      // ───── Indian — Non-veg ─────
+      { name: "Chicken Curry (1 bowl)", cal: 280, p: 24, c: 8, f: 16, cat: "Indian Non-veg" },
+      { name: "Butter Chicken (1 bowl)", cal: 420, p: 24, c: 12, f: 30, cat: "Indian Non-veg" },
+      { name: "Chicken Tikka Masala (1 bowl)", cal: 380, p: 26, c: 12, f: 24, cat: "Indian Non-veg" },
+      { name: "Chicken Korma (1 bowl)", cal: 400, p: 22, c: 14, f: 28, cat: "Indian Non-veg" },
+      { name: "Chicken 65 (1 plate)", cal: 360, p: 28, c: 14, f: 22, cat: "Indian Non-veg" },
+      { name: "Tandoori Chicken (1 leg)", cal: 220, p: 28, c: 4, f: 11, cat: "Indian Non-veg" },
+      { name: "Chicken Tikka (4 pcs)", cal: 240, p: 30, c: 6, f: 11, cat: "Indian Non-veg" },
+      { name: "Chicken Fry (1 plate)", cal: 320, p: 26, c: 8, f: 20, cat: "Indian Non-veg" },
+      { name: "Chicken Kebab (4 pcs)", cal: 220, p: 26, c: 4, f: 11, cat: "Indian Non-veg" },
+      { name: "Mutton Curry (1 bowl)", cal: 360, p: 24, c: 8, f: 26, cat: "Indian Non-veg" },
+      { name: "Mutton Rogan Josh (1 bowl)", cal: 380, p: 24, c: 8, f: 28, cat: "Indian Non-veg" },
+      { name: "Keema (1 bowl)", cal: 320, p: 22, c: 8, f: 22, cat: "Indian Non-veg" },
+      { name: "Fish Curry (1 bowl)", cal: 240, p: 22, c: 8, f: 13, cat: "Indian Non-veg" },
+      { name: "Fish Fry (1 piece)", cal: 220, p: 22, c: 6, f: 12, cat: "Indian Non-veg" },
+      { name: "Prawn Curry (1 bowl)", cal: 240, p: 22, c: 8, f: 13, cat: "Indian Non-veg" },
+      { name: "Prawn Fry (100g)", cal: 200, p: 22, c: 4, f: 11, cat: "Indian Non-veg" },
+      { name: "Egg Curry (2 eggs + gravy)", cal: 280, p: 14, c: 10, f: 20, cat: "Indian Non-veg" },
+      { name: "Egg Bhurji (2 eggs)", cal: 220, p: 13, c: 4, f: 16, cat: "Indian Non-veg" },
+      { name: "Boiled Egg (1)", cal: 78, p: 6, c: 0.6, f: 5, cat: "Indian Non-veg" },
+      { name: "Omelette (2 eggs)", cal: 200, p: 13, c: 2, f: 16, cat: "Indian Non-veg" },
+
+      // ───── Indian — South Indian ─────
+      { name: "Idli (2 pcs)", cal: 78, p: 3, c: 17, f: 0.2, cat: "South Indian" },
+      { name: "Plain Dosa (1)", cal: 168, p: 4, c: 28, f: 4, cat: "South Indian" },
+      { name: "Masala Dosa (1)", cal: 270, p: 6, c: 42, f: 8, cat: "South Indian" },
+      { name: "Onion Dosa (1)", cal: 220, p: 5, c: 35, f: 6, cat: "South Indian" },
+      { name: "Paneer Dosa (1)", cal: 320, p: 12, c: 38, f: 13, cat: "South Indian" },
+      { name: "Rava Dosa (1)", cal: 240, p: 5, c: 38, f: 7, cat: "South Indian" },
+      { name: "Set Dosa (3 pcs)", cal: 280, p: 6, c: 50, f: 5, cat: "South Indian" },
+      { name: "Uttapam (1)", cal: 220, p: 6, c: 38, f: 5, cat: "South Indian" },
+      { name: "Vada / Medu Vada (2 pcs)", cal: 280, p: 8, c: 30, f: 14, cat: "South Indian" },
+      { name: "Sambar Vada (2 pcs)", cal: 320, p: 10, c: 38, f: 14, cat: "South Indian" },
+      { name: "Pongal (1 cup)", cal: 280, p: 8, c: 40, f: 9, cat: "South Indian" },
+      { name: "Upma (1 plate)", cal: 250, p: 6, c: 45, f: 5, cat: "South Indian" },
+      { name: "Rava Kesari (1 small bowl)", cal: 240, p: 4, c: 36, f: 9, cat: "South Indian" },
+      { name: "Coconut Chutney (2 tbsp)", cal: 60, p: 1, c: 3, f: 5, cat: "South Indian" },
+      { name: "Tomato Chutney (2 tbsp)", cal: 35, p: 1, c: 5, f: 1.5, cat: "South Indian" },
+
+      // ───── Indian — Snacks & Street Food ─────
+      { name: "Samosa (1)", cal: 260, p: 5, c: 30, f: 13, cat: "Indian Snacks" },
+      { name: "Pakora / Bhajji (4 pcs)", cal: 220, p: 5, c: 22, f: 13, cat: "Indian Snacks" },
+      { name: "Onion Pakora (4 pcs)", cal: 240, p: 5, c: 24, f: 14, cat: "Indian Snacks" },
+      { name: "Aloo Tikki (1)", cal: 150, p: 3, c: 22, f: 6, cat: "Indian Snacks" },
+      { name: "Pani Puri (6 pcs)", cal: 180, p: 4, c: 28, f: 6, cat: "Indian Snacks" },
+      { name: "Bhel Puri (1 plate)", cal: 240, p: 6, c: 38, f: 8, cat: "Indian Snacks" },
+      { name: "Sev Puri (6 pcs)", cal: 280, p: 6, c: 38, f: 11, cat: "Indian Snacks" },
+      { name: "Dahi Puri (6 pcs)", cal: 260, p: 7, c: 36, f: 10, cat: "Indian Snacks" },
+      { name: "Pav Bhaji (1 plate)", cal: 420, p: 9, c: 56, f: 18, cat: "Indian Snacks" },
+      { name: "Vada Pav (1)", cal: 290, p: 8, c: 40, f: 12, cat: "Indian Snacks" },
+      { name: "Misal Pav (1 plate)", cal: 380, p: 14, c: 50, f: 14, cat: "Indian Snacks" },
+      { name: "Kachori (1)", cal: 220, p: 5, c: 26, f: 11, cat: "Indian Snacks" },
+      { name: "Dhokla (4 pcs)", cal: 160, p: 6, c: 24, f: 4, cat: "Indian Snacks" },
+      { name: "Khaman (4 pcs)", cal: 170, p: 6, c: 25, f: 5, cat: "Indian Snacks" },
+      { name: "Khandvi (4 pcs)", cal: 130, p: 5, c: 16, f: 5, cat: "Indian Snacks" },
+      { name: "Dabeli (1)", cal: 280, p: 7, c: 40, f: 10, cat: "Indian Snacks" },
+      { name: "Poha (1 plate)", cal: 270, p: 5, c: 50, f: 6, cat: "Indian Snacks" },
+      { name: "Sabudana Khichdi (1 plate)", cal: 320, p: 5, c: 56, f: 9, cat: "Indian Snacks" },
+      { name: "Chivda / Mixture (30g)", cal: 150, p: 4, c: 16, f: 8, cat: "Indian Snacks" },
+      { name: "Murukku (3 pcs)", cal: 140, p: 3, c: 16, f: 7, cat: "Indian Snacks" },
+      { name: "Banana Chips (30g)", cal: 160, p: 0.6, c: 18, f: 10, cat: "Indian Snacks" },
+      { name: "Roasted Chana (30g)", cal: 110, p: 6, c: 17, f: 2, cat: "Indian Snacks" },
+
+      // ───── Indian — Sweets ─────
+      { name: "Gulab Jamun (1)", cal: 150, p: 2, c: 22, f: 6, cat: "Indian Sweets" },
+      { name: "Rasgulla (1)", cal: 110, p: 2.5, c: 22, f: 1.5, cat: "Indian Sweets" },
+      { name: "Rasmalai (1)", cal: 180, p: 4, c: 24, f: 8, cat: "Indian Sweets" },
+      { name: "Jalebi (50g)", cal: 200, p: 1.5, c: 32, f: 8, cat: "Indian Sweets" },
+      { name: "Kheer (1 small bowl)", cal: 220, p: 5, c: 32, f: 8, cat: "Indian Sweets" },
+      { name: "Halwa, gajar (1 small bowl)", cal: 280, p: 4, c: 36, f: 14, cat: "Indian Sweets" },
+      { name: "Halwa, suji (1 small bowl)", cal: 240, p: 4, c: 32, f: 11, cat: "Indian Sweets" },
+      { name: "Ladoo, motichoor (1)", cal: 160, p: 2, c: 20, f: 8, cat: "Indian Sweets" },
+      { name: "Ladoo, besan (1)", cal: 180, p: 4, c: 20, f: 10, cat: "Indian Sweets" },
+      { name: "Barfi (1 piece)", cal: 150, p: 3, c: 18, f: 7, cat: "Indian Sweets" },
+      { name: "Soan Papdi (1 piece)", cal: 110, p: 1.5, c: 16, f: 4.5, cat: "Indian Sweets" },
+      { name: "Kaju Katli (1 piece)", cal: 100, p: 2, c: 11, f: 5, cat: "Indian Sweets" },
+      { name: "Mysore Pak (1 piece)", cal: 200, p: 2, c: 22, f: 12, cat: "Indian Sweets" },
+      { name: "Ice cream (1 scoop)", cal: 140, p: 2.5, c: 17, f: 7, cat: "Indian Sweets" },
+      { name: "Kulfi (1)", cal: 200, p: 4, c: 20, f: 12, cat: "Indian Sweets" },
+
+      // ───── Indian — Drinks ─────
+      { name: "Chai with milk + sugar (1 cup)", cal: 90, p: 2, c: 12, f: 3.5, cat: "Indian Drinks" },
+      { name: "Chai, no sugar (1 cup)", cal: 50, p: 2, c: 4, f: 3, cat: "Indian Drinks" },
+      { name: "Filter Coffee (1 cup)", cal: 90, p: 2, c: 12, f: 3.5, cat: "Indian Drinks" },
+      { name: "Lassi, sweet (1 glass)", cal: 220, p: 7, c: 30, f: 7, cat: "Indian Drinks" },
+      { name: "Lassi, salted (1 glass)", cal: 130, p: 6, c: 8, f: 7, cat: "Indian Drinks" },
+      { name: "Buttermilk / Chaas (1 glass)", cal: 60, p: 4, c: 6, f: 2, cat: "Indian Drinks" },
+      { name: "Mango Lassi (1 glass)", cal: 270, p: 6, c: 42, f: 7, cat: "Indian Drinks" },
+      { name: "Nimbu Pani (1 glass)", cal: 50, p: 0, c: 13, f: 0, cat: "Indian Drinks" },
+      { name: "Coconut Water (1 glass)", cal: 45, p: 1.5, c: 9, f: 0.5, cat: "Indian Drinks" },
+      { name: "Sugarcane Juice (1 glass)", cal: 180, p: 0.5, c: 45, f: 0, cat: "Indian Drinks" },
+      { name: "Masala Chai (1 cup)", cal: 110, p: 2, c: 14, f: 5, cat: "Indian Drinks" },
+
+      // ───── Proteins ─────
+      { name: "Chicken Breast, cooked (100g)", cal: 165, p: 31, c: 0, f: 3.6, cat: "Protein" },
+      { name: "Chicken Thigh, cooked (100g)", cal: 209, p: 26, c: 0, f: 11, cat: "Protein" },
+      { name: "Chicken Leg (100g)", cal: 184, p: 24, c: 0, f: 9.5, cat: "Protein" },
+      { name: "Chicken Wings (100g)", cal: 203, p: 30, c: 0, f: 8, cat: "Protein" },
+      { name: "Mutton, cooked (100g)", cal: 250, p: 25, c: 0, f: 17, cat: "Protein" },
+      { name: "Beef, lean (100g)", cal: 217, p: 26, c: 0, f: 12, cat: "Protein" },
+      { name: "Pork, lean (100g)", cal: 200, p: 27, c: 0, f: 9.5, cat: "Protein" },
+      { name: "Salmon (100g)", cal: 208, p: 20, c: 0, f: 13, cat: "Protein" },
+      { name: "Tuna, canned in water (100g)", cal: 116, p: 26, c: 0, f: 1, cat: "Protein" },
+      { name: "Tilapia (100g)", cal: 128, p: 26, c: 0, f: 2.7, cat: "Protein" },
+      { name: "Rohu Fish (100g)", cal: 111, p: 17, c: 0, f: 4, cat: "Protein" },
+      { name: "Prawns (100g)", cal: 99, p: 24, c: 0, f: 0.3, cat: "Protein" },
+      { name: "Egg, whole (1 large)", cal: 78, p: 6, c: 0.6, f: 5, cat: "Protein" },
+      { name: "Egg whites (3)", cal: 51, p: 11, c: 0.7, f: 0.2, cat: "Protein" },
+      { name: "Paneer (100g)", cal: 296, p: 18, c: 4, f: 24, cat: "Protein" },
+      { name: "Tofu (100g)", cal: 76, p: 8, c: 1.9, f: 4.8, cat: "Protein" },
+      { name: "Soya Chunks, cooked (100g)", cal: 130, p: 13, c: 9, f: 4, cat: "Protein" },
+      { name: "Whey Protein scoop (30g)", cal: 120, p: 24, c: 3, f: 1.5, cat: "Protein" },
+      { name: "Casein scoop (30g)", cal: 110, p: 24, c: 3, f: 1, cat: "Protein" },
+      { name: "Plant Protein scoop (30g)", cal: 115, p: 21, c: 4, f: 2, cat: "Protein" },
+
+      // ───── Grains & Cereals ─────
+      { name: "Oats, dry (50g)", cal: 190, p: 7, c: 33, f: 3, cat: "Grains" },
+      { name: "Quinoa, cooked (1 cup)", cal: 222, p: 8, c: 39, f: 3.5, cat: "Grains" },
+      { name: "Bulgur Wheat, cooked (1 cup)", cal: 151, p: 5.6, c: 34, f: 0.4, cat: "Grains" },
+      { name: "Whole Wheat Bread (1 slice)", cal: 70, p: 3.5, c: 13, f: 1, cat: "Grains" },
+      { name: "White Bread (1 slice)", cal: 80, p: 2.5, c: 15, f: 1, cat: "Grains" },
+      { name: "Multigrain Bread (1 slice)", cal: 85, p: 4, c: 15, f: 1.5, cat: "Grains" },
+      { name: "Brown Bread (1 slice)", cal: 75, p: 3, c: 14, f: 1, cat: "Grains" },
+      { name: "Bagel, plain (1)", cal: 270, p: 11, c: 53, f: 1.5, cat: "Grains" },
+      { name: "Tortilla, wheat (1)", cal: 140, p: 4, c: 22, f: 4, cat: "Grains" },
+      { name: "Pasta, cooked (1 cup)", cal: 220, p: 8, c: 43, f: 1.3, cat: "Grains" },
+      { name: "Noodles, cooked (1 cup)", cal: 220, p: 8, c: 40, f: 3, cat: "Grains" },
+      { name: "Couscous, cooked (1 cup)", cal: 176, p: 6, c: 36, f: 0.3, cat: "Grains" },
+      { name: "Cornflakes (30g)", cal: 110, p: 2, c: 26, f: 0.2, cat: "Grains" },
+      { name: "Muesli (50g)", cal: 200, p: 6, c: 35, f: 4, cat: "Grains" },
+      { name: "Granola (50g)", cal: 240, p: 5, c: 32, f: 11, cat: "Grains" },
+
+      // ───── Legumes & Beans ─────
+      { name: "Chickpeas, cooked (1 cup)", cal: 269, p: 14.5, c: 45, f: 4, cat: "Legumes" },
+      { name: "Black Beans, cooked (1 cup)", cal: 227, p: 15, c: 41, f: 0.9, cat: "Legumes" },
+      { name: "Kidney Beans, cooked (1 cup)", cal: 215, p: 15, c: 37, f: 1.5, cat: "Legumes" },
+      { name: "Lentils, cooked (1 cup)", cal: 230, p: 18, c: 40, f: 0.8, cat: "Legumes" },
+      { name: "Moong Dal, cooked (1 cup)", cal: 212, p: 14, c: 39, f: 0.8, cat: "Legumes" },
+      { name: "Toor Dal, cooked (1 cup)", cal: 200, p: 11, c: 36, f: 0.7, cat: "Legumes" },
+      { name: "Sprouts, mixed (1 cup)", cal: 100, p: 7, c: 18, f: 0.5, cat: "Legumes" },
+      { name: "Hummus (2 tbsp)", cal: 70, p: 2, c: 6, f: 4, cat: "Legumes" },
+      { name: "Edamame (1 cup)", cal: 188, p: 17, c: 14, f: 8, cat: "Legumes" },
+      { name: "Peanuts (30g)", cal: 170, p: 7, c: 5, f: 14, cat: "Legumes" },
+
+      // ───── Vegetables ─────
+      { name: "Broccoli (1 cup)", cal: 55, p: 3.7, c: 11, f: 0.6, cat: "Vegetables" },
+      { name: "Cauliflower (1 cup)", cal: 27, p: 2, c: 5, f: 0.3, cat: "Vegetables" },
+      { name: "Spinach, cooked (1 cup)", cal: 41, p: 5, c: 7, f: 0.5, cat: "Vegetables" },
+      { name: "Kale (1 cup)", cal: 33, p: 3, c: 7, f: 0.5, cat: "Vegetables" },
+      { name: "Cabbage (1 cup)", cal: 22, p: 1, c: 5, f: 0.1, cat: "Vegetables" },
+      { name: "Carrot (1 medium)", cal: 25, p: 0.6, c: 6, f: 0.1, cat: "Vegetables" },
+      { name: "Cucumber (1 cup)", cal: 16, p: 0.7, c: 4, f: 0.2, cat: "Vegetables" },
+      { name: "Tomato (1 medium)", cal: 22, p: 1, c: 5, f: 0.2, cat: "Vegetables" },
+      { name: "Bell Pepper (1)", cal: 30, p: 1, c: 7, f: 0.3, cat: "Vegetables" },
+      { name: "Onion (1 medium)", cal: 44, p: 1, c: 10, f: 0.1, cat: "Vegetables" },
+      { name: "Potato, boiled (1 medium)", cal: 130, p: 3, c: 30, f: 0.2, cat: "Vegetables" },
+      { name: "Sweet Potato, boiled (1 medium)", cal: 112, p: 2, c: 26, f: 0.1, cat: "Vegetables" },
+      { name: "Lettuce (1 cup)", cal: 5, p: 0.5, c: 1, f: 0, cat: "Vegetables" },
+      { name: "Mushroom (1 cup)", cal: 21, p: 3, c: 3, f: 0.3, cat: "Vegetables" },
+      { name: "Zucchini (1 cup)", cal: 19, p: 1.4, c: 3.5, f: 0.4, cat: "Vegetables" },
+      { name: "Bottle Gourd / Lauki (1 cup)", cal: 16, p: 0.6, c: 4, f: 0, cat: "Vegetables" },
+      { name: "Bitter Gourd / Karela (1 cup)", cal: 20, p: 1, c: 4, f: 0.2, cat: "Vegetables" },
+      { name: "Lady Finger / Bhindi (1 cup)", cal: 33, p: 2, c: 7, f: 0.2, cat: "Vegetables" },
+      { name: "Eggplant / Brinjal (1 cup)", cal: 35, p: 1, c: 8, f: 0.2, cat: "Vegetables" },
+      { name: "Green Peas (1 cup)", cal: 117, p: 8, c: 21, f: 0.6, cat: "Vegetables" },
+      { name: "Beetroot (1 cup)", cal: 58, p: 2, c: 13, f: 0.2, cat: "Vegetables" },
+      { name: "Radish (1 cup)", cal: 18, p: 1, c: 4, f: 0.1, cat: "Vegetables" },
+      { name: "Drumstick / Moringa (1 cup)", cal: 40, p: 2, c: 9, f: 0.2, cat: "Vegetables" },
+
+      // ───── Fruits ─────
+      { name: "Apple (1 medium)", cal: 95, p: 0.5, c: 25, f: 0.3, cat: "Fruits" },
+      { name: "Banana (1 medium)", cal: 105, p: 1.3, c: 27, f: 0.4, cat: "Fruits" },
+      { name: "Orange (1 medium)", cal: 62, p: 1.2, c: 15, f: 0.2, cat: "Fruits" },
+      { name: "Mango (1 cup)", cal: 99, p: 1.4, c: 25, f: 0.6, cat: "Fruits" },
+      { name: "Grapes (1 cup)", cal: 104, p: 1, c: 27, f: 0.2, cat: "Fruits" },
+      { name: "Strawberries (1 cup)", cal: 49, p: 1, c: 12, f: 0.5, cat: "Fruits" },
+      { name: "Blueberries (1 cup)", cal: 84, p: 1, c: 21, f: 0.5, cat: "Fruits" },
+      { name: "Pineapple (1 cup)", cal: 82, p: 0.9, c: 22, f: 0.2, cat: "Fruits" },
+      { name: "Watermelon (1 cup)", cal: 46, p: 0.9, c: 12, f: 0.2, cat: "Fruits" },
+      { name: "Papaya (1 cup)", cal: 62, p: 0.7, c: 16, f: 0.4, cat: "Fruits" },
+      { name: "Guava (1)", cal: 68, p: 2.6, c: 14, f: 1, cat: "Fruits" },
+      { name: "Pomegranate (1)", cal: 234, p: 4.7, c: 53, f: 3.3, cat: "Fruits" },
+      { name: "Kiwi (1)", cal: 42, p: 0.8, c: 10, f: 0.4, cat: "Fruits" },
+      { name: "Pear (1 medium)", cal: 101, p: 0.6, c: 27, f: 0.3, cat: "Fruits" },
+      { name: "Avocado (1/2)", cal: 160, p: 2, c: 9, f: 15, cat: "Fruits" },
+      { name: "Dates (3)", cal: 60, p: 0.4, c: 16, f: 0, cat: "Fruits" },
+      { name: "Raisins (30g)", cal: 90, p: 1, c: 24, f: 0.1, cat: "Fruits" },
+      { name: "Coconut, fresh (30g)", cal: 100, p: 1, c: 4, f: 9.5, cat: "Fruits" },
+      { name: "Lemon (1)", cal: 17, p: 0.6, c: 5, f: 0.2, cat: "Fruits" },
+      { name: "Lime (1)", cal: 20, p: 0.5, c: 7, f: 0.1, cat: "Fruits" },
+
+      // ───── Dairy ─────
+      { name: "Whole Milk (1 cup)", cal: 150, p: 8, c: 12, f: 8, cat: "Dairy" },
+      { name: "Skim Milk (1 cup)", cal: 83, p: 8, c: 12, f: 0.2, cat: "Dairy" },
+      { name: "Toned Milk (1 cup)", cal: 120, p: 7, c: 11, f: 5, cat: "Dairy" },
+      { name: "Almond Milk, unsweet (1 cup)", cal: 30, p: 1, c: 1, f: 2.5, cat: "Dairy" },
+      { name: "Soy Milk (1 cup)", cal: 100, p: 8, c: 4, f: 4, cat: "Dairy" },
+      { name: "Curd / Dahi (1 cup)", cal: 98, p: 11, c: 12, f: 2.5, cat: "Dairy" },
+      { name: "Greek Yogurt (1 cup)", cal: 130, p: 17, c: 9, f: 4, cat: "Dairy" },
+      { name: "Hung Curd (100g)", cal: 110, p: 12, c: 6, f: 4, cat: "Dairy" },
+      { name: "Cheese, cheddar (30g)", cal: 113, p: 7, c: 0.4, f: 9, cat: "Dairy" },
+      { name: "Mozzarella (30g)", cal: 78, p: 7, c: 1, f: 5, cat: "Dairy" },
+      { name: "Cottage Cheese (1/2 cup)", cal: 110, p: 12, c: 5, f: 5, cat: "Dairy" },
+      { name: "Butter (1 tbsp)", cal: 102, p: 0.1, c: 0, f: 11.5, cat: "Dairy" },
+      { name: "Ghee (1 tbsp)", cal: 120, p: 0, c: 0, f: 14, cat: "Dairy" },
+      { name: "Cream (2 tbsp)", cal: 100, p: 0.7, c: 1, f: 11, cat: "Dairy" },
+
+      // ───── Nuts & Seeds ─────
+      { name: "Almonds (10)", cal: 70, p: 2.6, c: 2.5, f: 6, cat: "Nuts & Seeds" },
+      { name: "Cashews (10)", cal: 90, p: 3, c: 5, f: 7, cat: "Nuts & Seeds" },
+      { name: "Walnuts (5 halves)", cal: 95, p: 2.2, c: 2, f: 9.5, cat: "Nuts & Seeds" },
+      { name: "Pistachios (30g)", cal: 160, p: 6, c: 8, f: 13, cat: "Nuts & Seeds" },
+      { name: "Brazil Nuts (4)", cal: 130, p: 3, c: 2.5, f: 13, cat: "Nuts & Seeds" },
+      { name: "Hazelnuts (30g)", cal: 180, p: 4, c: 5, f: 17, cat: "Nuts & Seeds" },
+      { name: "Macadamia (5)", cal: 100, p: 1, c: 2, f: 11, cat: "Nuts & Seeds" },
+      { name: "Pecans (30g)", cal: 196, p: 2.6, c: 4, f: 20, cat: "Nuts & Seeds" },
+      { name: "Chia Seeds (1 tbsp)", cal: 60, p: 2, c: 5, f: 3.8, cat: "Nuts & Seeds" },
+      { name: "Flax Seeds (1 tbsp)", cal: 55, p: 2, c: 3, f: 4.3, cat: "Nuts & Seeds" },
+      { name: "Pumpkin Seeds (30g)", cal: 160, p: 9, c: 4, f: 13, cat: "Nuts & Seeds" },
+      { name: "Sunflower Seeds (30g)", cal: 165, p: 6, c: 6, f: 14, cat: "Nuts & Seeds" },
+      { name: "Sesame Seeds (1 tbsp)", cal: 50, p: 1.6, c: 2, f: 4.5, cat: "Nuts & Seeds" },
+      { name: "Peanut Butter (1 tbsp)", cal: 94, p: 3.5, c: 3, f: 8, cat: "Nuts & Seeds" },
+      { name: "Almond Butter (1 tbsp)", cal: 98, p: 3.4, c: 3, f: 9, cat: "Nuts & Seeds" },
+
+      // ───── Fast Food / Restaurant ─────
+      { name: "McDonald's Burger", cal: 250, p: 12, c: 31, f: 9, cat: "Fast Food" },
+      { name: "Big Mac", cal: 540, p: 25, c: 45, f: 28, cat: "Fast Food" },
+      { name: "Cheeseburger", cal: 300, p: 15, c: 33, f: 12, cat: "Fast Food" },
+      { name: "French Fries, medium", cal: 320, p: 4, c: 42, f: 15, cat: "Fast Food" },
+      { name: "Pizza Slice (cheese)", cal: 285, p: 12, c: 36, f: 10, cat: "Fast Food" },
+      { name: "Pizza Slice (pepperoni)", cal: 313, p: 13, c: 36, f: 13, cat: "Fast Food" },
+      { name: "Pizza Slice (veg)", cal: 240, p: 11, c: 30, f: 8, cat: "Fast Food" },
+      { name: "Hot Dog (1)", cal: 290, p: 10, c: 27, f: 16, cat: "Fast Food" },
+      { name: "Subway 6\" Sub (avg)", cal: 350, p: 22, c: 45, f: 9, cat: "Fast Food" },
+      { name: "Fried Chicken (1 piece)", cal: 320, p: 22, c: 11, f: 21, cat: "Fast Food" },
+      { name: "KFC Zinger Burger", cal: 450, p: 23, c: 41, f: 22, cat: "Fast Food" },
+      { name: "Shawarma Roll", cal: 420, p: 22, c: 45, f: 16, cat: "Fast Food" },
+      { name: "Burrito (1)", cal: 600, p: 22, c: 75, f: 22, cat: "Fast Food" },
+      { name: "Taco (1)", cal: 200, p: 9, c: 14, f: 12, cat: "Fast Food" },
+      { name: "Sandwich, veg cheese (1)", cal: 280, p: 10, c: 35, f: 11, cat: "Fast Food" },
+      { name: "Grilled Cheese (1)", cal: 350, p: 13, c: 30, f: 19, cat: "Fast Food" },
+      { name: "Maggi (1 pack)", cal: 320, p: 7, c: 42, f: 13, cat: "Fast Food" },
+      { name: "Pasta, alfredo (1 plate)", cal: 480, p: 14, c: 56, f: 22, cat: "Fast Food" },
+      { name: "Pasta, marinara (1 plate)", cal: 320, p: 11, c: 56, f: 6, cat: "Fast Food" },
+      { name: "Spring Roll (2 pcs)", cal: 220, p: 4, c: 26, f: 11, cat: "Fast Food" },
+      { name: "Manchurian (1 plate)", cal: 380, p: 8, c: 45, f: 18, cat: "Fast Food" },
+      { name: "Hakka Noodles (1 plate)", cal: 380, p: 9, c: 56, f: 13, cat: "Fast Food" },
+      { name: "Fried Rice, veg (1 plate)", cal: 350, p: 7, c: 55, f: 11, cat: "Fast Food" },
+      { name: "Schezwan Rice (1 plate)", cal: 400, p: 8, c: 58, f: 14, cat: "Fast Food" },
+      { name: "Momos, veg (6 pcs)", cal: 240, p: 7, c: 38, f: 6, cat: "Fast Food" },
+      { name: "Momos, chicken (6 pcs)", cal: 290, p: 14, c: 32, f: 11, cat: "Fast Food" },
+
+      // ───── Beverages ─────
+      { name: "Coffee, black (1 cup)", cal: 5, p: 0.3, c: 0, f: 0, cat: "Beverages" },
+      { name: "Cappuccino (1 cup)", cal: 80, p: 5, c: 7, f: 4, cat: "Beverages" },
+      { name: "Latte (1 cup)", cal: 130, p: 8, c: 12, f: 6, cat: "Beverages" },
+      { name: "Espresso (1 shot)", cal: 5, p: 0.1, c: 1, f: 0, cat: "Beverages" },
+      { name: "Mocha (1 cup)", cal: 200, p: 8, c: 25, f: 8, cat: "Beverages" },
+      { name: "Green Tea (1 cup)", cal: 2, p: 0, c: 0, f: 0, cat: "Beverages" },
+      { name: "Black Tea (1 cup)", cal: 2, p: 0, c: 0, f: 0, cat: "Beverages" },
+      { name: "Coke (330ml)", cal: 140, p: 0, c: 39, f: 0, cat: "Beverages" },
+      { name: "Diet Coke (330ml)", cal: 0, p: 0, c: 0, f: 0, cat: "Beverages" },
+      { name: "Sprite (330ml)", cal: 140, p: 0, c: 38, f: 0, cat: "Beverages" },
+      { name: "Pepsi (330ml)", cal: 150, p: 0, c: 41, f: 0, cat: "Beverages" },
+      { name: "Orange Juice (1 cup)", cal: 110, p: 2, c: 26, f: 0.5, cat: "Beverages" },
+      { name: "Apple Juice (1 cup)", cal: 114, p: 0.3, c: 28, f: 0.3, cat: "Beverages" },
+      { name: "Fruit Smoothie (1 cup)", cal: 200, p: 4, c: 45, f: 1, cat: "Beverages" },
+      { name: "Protein Shake (whey + milk)", cal: 270, p: 32, c: 15, f: 9, cat: "Beverages" },
+      { name: "Beer (1 can / 330ml)", cal: 153, p: 1.6, c: 13, f: 0, cat: "Beverages" },
+      { name: "Wine, red (150ml)", cal: 125, p: 0, c: 4, f: 0, cat: "Beverages" },
+      { name: "Whiskey (1 shot 30ml)", cal: 70, p: 0, c: 0, f: 0, cat: "Beverages" },
+      { name: "Vodka (1 shot 30ml)", cal: 65, p: 0, c: 0, f: 0, cat: "Beverages" },
+      { name: "Rum (1 shot 30ml)", cal: 65, p: 0, c: 0, f: 0, cat: "Beverages" },
+      { name: "Gatorade (500ml)", cal: 120, p: 0, c: 32, f: 0, cat: "Beverages" },
+      { name: "Energy Drink, RedBull (250ml)", cal: 110, p: 1, c: 27, f: 0, cat: "Beverages" },
+
+      // ───── Oils & Condiments ─────
+      { name: "Olive Oil (1 tbsp)", cal: 119, p: 0, c: 0, f: 13.5, cat: "Oils & Condiments" },
+      { name: "Coconut Oil (1 tbsp)", cal: 117, p: 0, c: 0, f: 13.6, cat: "Oils & Condiments" },
+      { name: "Mustard Oil (1 tbsp)", cal: 124, p: 0, c: 0, f: 14, cat: "Oils & Condiments" },
+      { name: "Sunflower Oil (1 tbsp)", cal: 124, p: 0, c: 0, f: 14, cat: "Oils & Condiments" },
+      { name: "Sugar (1 tsp)", cal: 16, p: 0, c: 4, f: 0, cat: "Oils & Condiments" },
+      { name: "Honey (1 tbsp)", cal: 64, p: 0.1, c: 17, f: 0, cat: "Oils & Condiments" },
+      { name: "Jam (1 tbsp)", cal: 56, p: 0, c: 14, f: 0, cat: "Oils & Condiments" },
+      { name: "Tomato Ketchup (1 tbsp)", cal: 19, p: 0.2, c: 5, f: 0, cat: "Oils & Condiments" },
+      { name: "Mayonnaise (1 tbsp)", cal: 90, p: 0, c: 0.6, f: 10, cat: "Oils & Condiments" },
+      { name: "Mustard (1 tsp)", cal: 3, p: 0.2, c: 0.3, f: 0.2, cat: "Oils & Condiments" },
+      { name: "Soy Sauce (1 tbsp)", cal: 8, p: 1, c: 1, f: 0, cat: "Oils & Condiments" },
+      { name: "Pickle, mango (1 tbsp)", cal: 30, p: 0.2, c: 1.5, f: 2.5, cat: "Oils & Condiments" },
+      { name: "Pickle, lime (1 tbsp)", cal: 25, p: 0.2, c: 1.5, f: 2, cat: "Oils & Condiments" },
+      { name: "Papad (1)", cal: 35, p: 2, c: 6, f: 0.5, cat: "Oils & Condiments" },
     ];
 
     // Master exercise library: 20+ per muscle group, with equipment + difficulty.
@@ -509,6 +836,7 @@
       const [water, setWater] = useStore("ftp:water", {});
       const [measurements, setMeasurements] = useStore("ftp:measurements", []);
       const [streak, setStreak] = useStore("ftp:streak", { count: 0, last: null });
+      const [customFoods, setCustomFoods] = useStore("ftp:customFoods", []);
       const [tab, setTab] = useState("home");
 
       // Update streak when user logs activity today
@@ -539,6 +867,7 @@
         meals, setMeals,
         water, setWater,
         measurements, setMeasurements,
+        customFoods, setCustomFoods,
         streak,
         setTab
       };
@@ -1856,10 +2185,13 @@
     }
 
     // ============ NUTRITION SCREEN ============
-    function NutritionScreen({ profile, meals, setMeals, workouts }) {
+    function NutritionScreen({ profile, meals, setMeals, workouts, customFoods = [], setCustomFoods }) {
       const today = todayKey();
       const [activeMeal, setActiveMeal] = useState(null); // "Breakfast", etc
       const [searchQ, setSearchQ] = useState("");
+      const [activeCat, setActiveCat] = useState("All");
+      const [showCustomForm, setShowCustomForm] = useState(false);
+      const [customFood, setCustomFood] = useState({ name: "", cal: "", p: "", c: "", f: "" });
 
       // Adherence-aware target
       const last14 = workouts.filter(w => {
@@ -1875,6 +2207,21 @@
 
       const mealTypes = ["Breakfast", "Lunch", "Dinner", "Snack"];
       const todayMeals = meals.filter(m => m.date === today);
+
+      // Combined food pool (built-in + user-added custom foods)
+      const allFoods = useMemo(() => {
+        const customs = (customFoods || []).map((f) => ({ ...f, cat: "My Foods" }));
+        return [...customs, ...FOOD_DB];
+      }, [customFoods]);
+
+      // Build the list of category tabs from whatever is in allFoods
+      const categories = useMemo(() => {
+        const set = new Set(allFoods.map((f) => f.cat));
+        const arr = Array.from(set);
+        // My Foods first, then alphabetical
+        arr.sort((a, b) => (a === "My Foods" ? -1 : b === "My Foods" ? 1 : a.localeCompare(b)));
+        return ["All", ...arr];
+      }, [allFoods]);
 
       const totals = todayMeals.reduce((acc, m) => {
         m.foods.forEach(f => {
@@ -1912,9 +2259,35 @@
         setMeals(updated);
       };
 
-      const filteredFoods = FOOD_DB.filter(f =>
-        f.name.toLowerCase().includes(searchQ.toLowerCase())
-      );
+      const saveCustomFood = () => {
+        const name = customFood.name.trim();
+        const cal = +customFood.cal;
+        if (!name || !cal) return;
+        const food = {
+          name,
+          cal,
+          p: +customFood.p || 0,
+          c: +customFood.c || 0,
+          f: +customFood.f || 0,
+          cat: "My Foods",
+          custom: true,
+        };
+        setCustomFoods([food, ...(customFoods || [])]);
+        setCustomFood({ name: "", cal: "", p: "", c: "", f: "" });
+        setShowCustomForm(false);
+        addFood(food); // also add it to current meal
+      };
+
+      const deleteCustomFood = (name) => {
+        setCustomFoods((customFoods || []).filter((f) => f.name !== name));
+      };
+
+      // Filter applied: search + category
+      const filteredFoods = allFoods.filter((f) => {
+        if (activeCat !== "All" && f.cat !== activeCat) return false;
+        if (searchQ && !f.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+        return true;
+      });
 
       if (profile.noTracking) {
         return (
@@ -2004,31 +2377,160 @@
 
           {/* Add food modal */}
           {activeMeal && (
-            <Modal onClose={() => { setActiveMeal(null); setSearchQ(""); }} title={`Add to ${activeMeal}`} fullHeight>
-              <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                placeholder="Search food (e.g. chapati, chicken)..."
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none mb-3" />
-              <div className="overflow-y-auto max-h-[55vh] scrollbar-hide">
-                {["Indian", "Global"].map(cat => {
-                  const items = filteredFoods.filter(f => f.cat === cat);
-                  if (!items.length) return null;
-                  return (
-                    <div key={cat} className="mb-3">
-                      <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 px-1">{cat}</div>
-                      {items.map((f, i) => (
-                        <button key={i} onClick={() => addFood(f)}
-                          className="w-full flex justify-between items-center p-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl mb-1.5 text-left">
-                          <div>
-                            <div className="text-sm text-zinc-100">{f.name}</div>
-                            <div className="text-xs text-zinc-500 mono">{f.p}g protein</div>
-                          </div>
-                          <div className="text-sm font-bold text-lime-400 mono">{f.cal} kcal</div>
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })}
+            <Modal onClose={() => { setActiveMeal(null); setSearchQ(""); setActiveCat("All"); setShowCustomForm(false); }} title={`Add to ${activeMeal}`} fullHeight>
+              {/* Search bar */}
+              <div className="relative mb-3">
+                <input
+                  autoFocus
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  placeholder="Search any food..."
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl pl-4 pr-10 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none"
+                />
+                {searchQ && (
+                  <button onClick={() => setSearchQ("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
+
+              {/* Category tabs (horizontal scroll) */}
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2 mb-2">
+                {categories.map((cat) => (
+                  <button key={cat} onClick={() => setActiveCat(cat)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition ${
+                      activeCat === cat
+                        ? "bg-lime-400 text-zinc-900 border-lime-400"
+                        : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600"
+                    }`}>
+                    {cat === "My Foods" && "⭐ "}{cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Counts + custom button */}
+              <div className="flex items-center justify-between mb-2 px-1">
+                <div className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold">
+                  {filteredFoods.length} {filteredFoods.length === 1 ? "food" : "foods"}
+                  {activeCat !== "All" && ` · ${activeCat}`}
+                </div>
+                <button onClick={() => setShowCustomForm(true)}
+                  className="text-[11px] text-lime-400 font-bold flex items-center gap-1 px-2 py-1 rounded-md hover:bg-lime-400/10">
+                  <Plus className="w-3 h-3" /> Custom
+                </button>
+              </div>
+
+              {/* Food list */}
+              <div className="overflow-y-auto max-h-[50vh] scrollbar-hide -mx-1 px-1">
+                {filteredFoods.length === 0 && !showCustomForm && (
+                  <div className="text-center py-8">
+                    <div className="text-zinc-600 text-sm mb-3">No foods match "{searchQ}"</div>
+                    <button onClick={() => {
+                      setCustomFood({ ...customFood, name: searchQ });
+                      setShowCustomForm(true);
+                    }}
+                      className="text-lime-400 text-sm font-semibold flex items-center gap-1.5 mx-auto px-4 py-2 rounded-lg bg-lime-400/10">
+                      <Plus className="w-4 h-4" /> Add "{searchQ}" as custom food
+                    </button>
+                  </div>
+                )}
+
+                {filteredFoods.map((f, i) => (
+                  <button key={i} onClick={() => addFood(f)}
+                    className="w-full flex justify-between items-center p-3 bg-zinc-800 hover:bg-zinc-700 active:scale-[0.99] rounded-xl mb-1.5 text-left transition">
+                    <div className="min-w-0 flex-1 pr-3">
+                      <div className="text-sm text-zinc-100 truncate flex items-center gap-1.5">
+                        {f.custom && <span className="text-amber-400">⭐</span>}
+                        {f.name}
+                      </div>
+                      <div className="text-[10px] text-zinc-500 mono mt-0.5">
+                        P {f.p}g · C {f.c || 0}g · F {f.f || 0}g
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-sm font-bold text-lime-400 mono">{f.cal}<span className="text-[10px] text-zinc-500"> kcal</span></div>
+                      {f.custom && (
+                        <button onClick={(e) => { e.stopPropagation(); deleteCustomFood(f.name); }}
+                          className="text-zinc-600 hover:text-red-400 p-1">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom food form (slide-up) */}
+              {showCustomForm && (
+                <div className="absolute inset-0 bg-zinc-900 rounded-t-3xl sm:rounded-3xl p-5 fade-in overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-100">Add custom food</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">Saved permanently to "My Foods"</p>
+                    </div>
+                    <button onClick={() => setShowCustomForm(false)}
+                      className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                      <X className="w-4 h-4 text-zinc-400" />
+                    </button>
+                  </div>
+
+                  <Field label="Food name">
+                    <input
+                      autoFocus
+                      value={customFood.name}
+                      onChange={(e) => setCustomFood({ ...customFood, name: e.target.value })}
+                      placeholder="e.g. Mom's Aloo Paratha"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:border-lime-500 outline-none"
+                    />
+                  </Field>
+
+                  <Field label="Calories (required)">
+                    <input
+                      type="number" inputMode="numeric"
+                      value={customFood.cal}
+                      onChange={(e) => setCustomFood({ ...customFood, cal: e.target.value })}
+                      placeholder="e.g. 280"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 mono placeholder-zinc-600 focus:border-lime-500 outline-none"
+                    />
+                  </Field>
+
+                  <div className="grid grid-cols-3 gap-2 mb-5">
+                    <Field label="Protein (g)">
+                      <input type="number" inputMode="decimal" step="0.1"
+                        value={customFood.p}
+                        onChange={(e) => setCustomFood({ ...customFood, p: e.target.value })}
+                        placeholder="0"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-3 text-zinc-100 mono placeholder-zinc-600 focus:border-lime-500 outline-none text-center" />
+                    </Field>
+                    <Field label="Carbs (g)">
+                      <input type="number" inputMode="decimal" step="0.1"
+                        value={customFood.c}
+                        onChange={(e) => setCustomFood({ ...customFood, c: e.target.value })}
+                        placeholder="0"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-3 text-zinc-100 mono placeholder-zinc-600 focus:border-lime-500 outline-none text-center" />
+                    </Field>
+                    <Field label="Fat (g)">
+                      <input type="number" inputMode="decimal" step="0.1"
+                        value={customFood.f}
+                        onChange={(e) => setCustomFood({ ...customFood, f: e.target.value })}
+                        placeholder="0"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-3 text-zinc-100 mono placeholder-zinc-600 focus:border-lime-500 outline-none text-center" />
+                    </Field>
+                  </div>
+
+                  <button onClick={saveCustomFood}
+                    disabled={!customFood.name.trim() || !customFood.cal}
+                    className="w-full py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 disabled:opacity-40"
+                    style={{ background: ACCENT }}>
+                    <Save className="w-4 h-4" /> Save & add to {activeMeal}
+                  </button>
+
+                  <p className="text-[10px] text-zinc-600 mt-3 leading-relaxed text-center">
+                    Tip: nutrition labels show calories per serving. Match your serving size to what you're eating.
+                  </p>
+                </div>
+              )}
             </Modal>
           )}
         </div>
