@@ -1,1 +1,2416 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#09090b" />
+  <title>FitTrack Pro — Fat Loss & Workout Tracker</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <style>
+    html, body { margin: 0; padding: 0; min-height: 100vh; background: #09090b; overscroll-behavior: none; }
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #fafafa; -webkit-font-smoothing: antialiased; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum'; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { scrollbar-width: none; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.35s ease-out; }
+    @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(163,230,53,0.5); } 70% { box-shadow: 0 0 0 12px rgba(163,230,53,0); } 100% { box-shadow: 0 0 0 0 rgba(163,230,53,0); } }
+    .pulse-ring { animation: pulse-ring 2s infinite; }
+    #loading { position: fixed; inset: 0; background: #09090b; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 9999; transition: opacity 0.4s; }
+    .ld { width: 10px; height: 10px; border-radius: 50%; background: #a3e635; animation: bounce 1.4s infinite ease-in-out both; }
+    .ld:nth-child(1) { animation-delay: -0.32s; }
+    .ld:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    #loading .lbl { color: #71717a; font-size: 13px; letter-spacing: 0.02em; }
+    #loading .err { color: #f87171; font-size: 12px; max-width: 320px; text-align: center; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div style="display:flex;gap:6px;"><div class="ld"></div><div class="ld"></div><div class="ld"></div></div>
+    <div class="lbl">Loading FitTrack Pro…</div>
+  </div>
+  <div id="root"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+      "lucide-react": "https://esm.sh/lucide-react@0.383.0?deps=react@18.2.0",
+      "recharts": "https://esm.sh/recharts@2.12.7?deps=react@18.2.0"
+    }
+  }
+  </script>
+
+  <script>
+    const KEY_TO_ENDPOINT = {
+      'ftp:profile': '/api/profile',
+      'ftp:weights': '/api/weights',
+      'ftp:workouts': '/api/workouts',
+      'ftp:meals': '/api/meals',
+      'ftp:water': '/api/water',
+      'ftp:measurements': '/api/measurements',
+      'ftp:streak': '/api/streak'
+    };
+
+    let saveQueue = Promise.resolve();
+    function queued(fn) {
+      saveQueue = saveQueue.then(fn).catch((e) => console.error(e));
+      return saveQueue;
+    }
+
+    window.storage = {
+      get: async (key) => {
+        const ep = KEY_TO_ENDPOINT[key];
+        if (!ep) return null;
+        try {
+          const res = await fetch(ep);
+          if (!res.ok) return null;
+          const data = await res.json();
+          if (data === null || data === undefined) return null;
+          if (Array.isArray(data) && data.length === 0) return null;
+          if (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0 && key !== 'ftp:water') {
+            if (key === 'ftp:profile') return null;
+          }
+          return { key, value: JSON.stringify(data) };
+        } catch (e) {
+          console.error('GET failed for', key, e);
+          return null;
+        }
+      },
+      set: async (key, value) =>
+        queued(async () => {
+          const ep = KEY_TO_ENDPOINT[key];
+          if (!ep) return null;
+          try {
+            await fetch(ep, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: value
+            });
+            return { key, value };
+          } catch (e) {
+            console.error('PUT failed for', key, e);
+            return null;
+          }
+        }),
+      delete: async (key) => {
+        if (key === 'ftp:profile') {
+          try { await fetch('/api/all', { method: 'DELETE' }); } catch (e) {}
+        }
+        return { key, deleted: true };
+      }
+    };
+
+    fetch('/api/stats').then((r) => r.ok ? null : Promise.reject()).catch(() => {
+      const el = document.getElementById('loading');
+      if (el) el.innerHTML = '<div class="err"><strong style="color:#f87171">Backend not reachable</strong><br><br>Make sure the server is running:<br><br><code style="background:#27272a;padding:6px 10px;border-radius:6px;color:#a3e635">npm start</code><br><br>Then refresh this page.</div>';
+    });
+  </script>
+
+  <script type="text/babel" data-type="module" data-presets="react">
+    import React, { useState, useEffect, useMemo } from "react";
+    import { createRoot } from "react-dom/client";
+    import {
+      Home, Dumbbell, Apple, TrendingUp, User, Plus, Check, X,
+      Flame, Droplet, Trophy, ChevronLeft, ChevronRight, Target,
+      Activity, Bell, Settings, Edit3, Trash2, Calendar, Award,
+      Zap, Heart, Ruler, ArrowRight, Save, Clock
+    } from "lucide-react";
+    import {
+      LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+      AreaChart, Area, BarChart, Bar, CartesianGrid, ReferenceLine
+    } from "recharts";
+
+    const ACCENT = "#a3e635"; // lime-400
+    const ACCENT_DARK = "#65a30d";
+    const KCAL_PER_KG_FAT = 7700;
+
+    const FOOD_DB = [
+      // Indian
+      { name: "Chapati (1)", cal: 104, p: 3.1, c: 18, f: 2.5, cat: "Indian" },
+      { name: "Rice, cooked (1 cup)", cal: 206, p: 4.3, c: 45, f: 0.4, cat: "Indian" },
+      { name: "Dal (1 bowl)", cal: 198, p: 12, c: 30, f: 4, cat: "Indian" },
+      { name: "Paneer (100g)", cal: 296, p: 18, c: 4, f: 24, cat: "Indian" },
+      { name: "Idli (2 pcs)", cal: 78, p: 3, c: 17, f: 0.2, cat: "Indian" },
+      { name: "Dosa, plain (1)", cal: 168, p: 4, c: 28, f: 4, cat: "Indian" },
+      { name: "Sambar (1 bowl)", cal: 130, p: 6, c: 22, f: 2, cat: "Indian" },
+      { name: "Curd (1 cup)", cal: 98, p: 11, c: 12, f: 2.5, cat: "Indian" },
+      { name: "Poha (1 plate)", cal: 270, p: 5, c: 50, f: 6, cat: "Indian" },
+      { name: "Upma (1 plate)", cal: 250, p: 6, c: 45, f: 5, cat: "Indian" },
+      { name: "Roti + Sabzi", cal: 320, p: 9, c: 50, f: 9, cat: "Indian" },
+      { name: "Chicken Curry (100g)", cal: 220, p: 22, c: 6, f: 12, cat: "Indian" },
+      { name: "Biryani (1 plate)", cal: 480, p: 16, c: 70, f: 14, cat: "Indian" },
+      // Global
+      { name: "Chicken breast (100g)", cal: 165, p: 31, c: 0, f: 3.6, cat: "Global" },
+      { name: "Egg, whole (1)", cal: 78, p: 6, c: 0.6, f: 5, cat: "Global" },
+      { name: "Egg whites (3)", cal: 51, p: 11, c: 0.7, f: 0.2, cat: "Global" },
+      { name: "Oats (50g)", cal: 190, p: 7, c: 33, f: 3, cat: "Global" },
+      { name: "Banana (1)", cal: 105, p: 1.3, c: 27, f: 0.4, cat: "Global" },
+      { name: "Apple (1)", cal: 95, p: 0.5, c: 25, f: 0.3, cat: "Global" },
+      { name: "Almonds (10)", cal: 70, p: 2.6, c: 2.5, f: 6, cat: "Global" },
+      { name: "Peanut Butter (1 tbsp)", cal: 94, p: 3.5, c: 3, f: 8, cat: "Global" },
+      { name: "Whey scoop (30g)", cal: 120, p: 24, c: 3, f: 1.5, cat: "Global" },
+      { name: "Milk (1 cup)", cal: 150, p: 8, c: 12, f: 8, cat: "Global" },
+      { name: "Salmon (100g)", cal: 208, p: 20, c: 0, f: 13, cat: "Global" },
+      { name: "Sweet Potato (1)", cal: 112, p: 2, c: 26, f: 0.1, cat: "Global" },
+      { name: "Broccoli (1 cup)", cal: 55, p: 3.7, c: 11, f: 0.6, cat: "Global" },
+      { name: "Greek Yogurt (1 cup)", cal: 130, p: 17, c: 9, f: 4, cat: "Global" },
+      { name: "Avocado (1/2)", cal: 160, p: 2, c: 9, f: 15, cat: "Global" },
+      { name: "Tuna (100g)", cal: 116, p: 26, c: 0, f: 1, cat: "Global" }
+    ];
+
+    // Master exercise library: 20+ per muscle group, with equipment + difficulty.
+    // eq: barbell, dumbbell, cable, machine, bodyweight, smith
+    // lvl: 1=beginner, 2=intermediate, 3=advanced
+    const EXERCISES = {
+      Chest: [
+        { name: "Barbell Bench Press", eq: "barbell", lvl: 2 },
+        { name: "Incline Barbell Press", eq: "barbell", lvl: 2 },
+        { name: "Decline Barbell Press", eq: "barbell", lvl: 2 },
+        { name: "Dumbbell Bench Press", eq: "dumbbell", lvl: 1 },
+        { name: "Incline Dumbbell Press", eq: "dumbbell", lvl: 1 },
+        { name: "Decline Dumbbell Press", eq: "dumbbell", lvl: 2 },
+        { name: "Dumbbell Fly", eq: "dumbbell", lvl: 1 },
+        { name: "Incline Dumbbell Fly", eq: "dumbbell", lvl: 2 },
+        { name: "Cable Fly (mid)", eq: "cable", lvl: 1 },
+        { name: "Cable Fly (low to high)", eq: "cable", lvl: 2 },
+        { name: "Cable Fly (high to low)", eq: "cable", lvl: 2 },
+        { name: "Cable Crossover", eq: "cable", lvl: 2 },
+        { name: "Pec Deck Machine", eq: "machine", lvl: 1 },
+        { name: "Machine Chest Press", eq: "machine", lvl: 1 },
+        { name: "Smith Machine Bench Press", eq: "smith", lvl: 1 },
+        { name: "Push-ups", eq: "bodyweight", lvl: 1 },
+        { name: "Incline Push-ups", eq: "bodyweight", lvl: 1 },
+        { name: "Decline Push-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Diamond Push-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Dips (chest-focused)", eq: "bodyweight", lvl: 2 },
+        { name: "Landmine Press", eq: "barbell", lvl: 2 },
+        { name: "Svend Press", eq: "bodyweight", lvl: 1 },
+      ],
+      Back: [
+        { name: "Conventional Deadlift", eq: "barbell", lvl: 3 },
+        { name: "Sumo Deadlift", eq: "barbell", lvl: 3 },
+        { name: "Romanian Deadlift", eq: "barbell", lvl: 2 },
+        { name: "Rack Pulls", eq: "barbell", lvl: 2 },
+        { name: "Pull-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Chin-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Wide-grip Pull-ups", eq: "bodyweight", lvl: 3 },
+        { name: "Lat Pulldown (wide)", eq: "cable", lvl: 1 },
+        { name: "Lat Pulldown (close)", eq: "cable", lvl: 1 },
+        { name: "Barbell Row (overhand)", eq: "barbell", lvl: 2 },
+        { name: "Barbell Row (underhand)", eq: "barbell", lvl: 2 },
+        { name: "Pendlay Row", eq: "barbell", lvl: 3 },
+        { name: "T-Bar Row", eq: "barbell", lvl: 2 },
+        { name: "Single-arm DB Row", eq: "dumbbell", lvl: 1 },
+        { name: "Chest-supported DB Row", eq: "dumbbell", lvl: 2 },
+        { name: "Seated Cable Row", eq: "cable", lvl: 1 },
+        { name: "Wide-grip Cable Row", eq: "cable", lvl: 1 },
+        { name: "Face Pull", eq: "cable", lvl: 1 },
+        { name: "Reverse Fly (machine)", eq: "machine", lvl: 1 },
+        { name: "Reverse Fly (dumbbell)", eq: "dumbbell", lvl: 1 },
+        { name: "Straight-arm Pulldown", eq: "cable", lvl: 1 },
+        { name: "Hyperextension", eq: "bodyweight", lvl: 1 },
+        { name: "Good Morning", eq: "barbell", lvl: 2 },
+        { name: "Meadows Row", eq: "barbell", lvl: 3 },
+      ],
+      Shoulders: [
+        { name: "Overhead Press (barbell)", eq: "barbell", lvl: 2 },
+        { name: "Overhead Press (dumbbell)", eq: "dumbbell", lvl: 1 },
+        { name: "Seated DB Press", eq: "dumbbell", lvl: 1 },
+        { name: "Arnold Press", eq: "dumbbell", lvl: 2 },
+        { name: "Push Press", eq: "barbell", lvl: 3 },
+        { name: "Behind-the-Neck Press", eq: "barbell", lvl: 3 },
+        { name: "Smith Shoulder Press", eq: "smith", lvl: 1 },
+        { name: "Machine Shoulder Press", eq: "machine", lvl: 1 },
+        { name: "Lateral Raise (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Lateral Raise (cable)", eq: "cable", lvl: 1 },
+        { name: "Lateral Raise (machine)", eq: "machine", lvl: 1 },
+        { name: "Front Raise (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Front Raise (cable)", eq: "cable", lvl: 1 },
+        { name: "Front Raise (plate)", eq: "bodyweight", lvl: 1 },
+        { name: "Rear Delt Fly (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Rear Delt Fly (cable)", eq: "cable", lvl: 1 },
+        { name: "Reverse Pec Deck", eq: "machine", lvl: 1 },
+        { name: "Face Pull", eq: "cable", lvl: 1 },
+        { name: "Upright Row", eq: "barbell", lvl: 2 },
+        { name: "Cable Y-raise", eq: "cable", lvl: 2 },
+        { name: "Landmine Press", eq: "barbell", lvl: 2 },
+        { name: "Shrug (barbell)", eq: "barbell", lvl: 1 },
+        { name: "Shrug (dumbbell)", eq: "dumbbell", lvl: 1 },
+      ],
+      Legs: [
+        { name: "Back Squat", eq: "barbell", lvl: 2 },
+        { name: "Front Squat", eq: "barbell", lvl: 3 },
+        { name: "Hack Squat", eq: "machine", lvl: 2 },
+        { name: "Goblet Squat", eq: "dumbbell", lvl: 1 },
+        { name: "Bulgarian Split Squat", eq: "dumbbell", lvl: 2 },
+        { name: "Smith Machine Squat", eq: "smith", lvl: 1 },
+        { name: "Pause Squat", eq: "barbell", lvl: 3 },
+        { name: "Romanian Deadlift", eq: "barbell", lvl: 2 },
+        { name: "Stiff-leg Deadlift", eq: "barbell", lvl: 2 },
+        { name: "Sumo Deadlift", eq: "barbell", lvl: 3 },
+        { name: "Leg Press", eq: "machine", lvl: 1 },
+        { name: "Leg Extension", eq: "machine", lvl: 1 },
+        { name: "Leg Curl (lying)", eq: "machine", lvl: 1 },
+        { name: "Leg Curl (seated)", eq: "machine", lvl: 1 },
+        { name: "Walking Lunges", eq: "dumbbell", lvl: 1 },
+        { name: "Reverse Lunges", eq: "dumbbell", lvl: 1 },
+        { name: "Step-ups", eq: "dumbbell", lvl: 1 },
+        { name: "Calf Raise (standing)", eq: "machine", lvl: 1 },
+        { name: "Calf Raise (seated)", eq: "machine", lvl: 1 },
+        { name: "Donkey Calf Raise", eq: "machine", lvl: 2 },
+        { name: "Hip Thrust", eq: "barbell", lvl: 2 },
+        { name: "Glute Bridge", eq: "barbell", lvl: 1 },
+        { name: "Glute Ham Raise", eq: "bodyweight", lvl: 3 },
+        { name: "Box Jumps", eq: "bodyweight", lvl: 2 },
+        { name: "Sissy Squat", eq: "bodyweight", lvl: 2 },
+      ],
+      Biceps: [
+        { name: "Barbell Curl", eq: "barbell", lvl: 1 },
+        { name: "EZ-bar Curl", eq: "barbell", lvl: 1 },
+        { name: "Wide-grip Barbell Curl", eq: "barbell", lvl: 2 },
+        { name: "DB Curl (alternating)", eq: "dumbbell", lvl: 1 },
+        { name: "DB Curl (simultaneous)", eq: "dumbbell", lvl: 1 },
+        { name: "Hammer Curl", eq: "dumbbell", lvl: 1 },
+        { name: "Cross-body Hammer Curl", eq: "dumbbell", lvl: 1 },
+        { name: "Incline DB Curl", eq: "dumbbell", lvl: 2 },
+        { name: "Concentration Curl", eq: "dumbbell", lvl: 1 },
+        { name: "Preacher Curl (barbell)", eq: "barbell", lvl: 2 },
+        { name: "Preacher Curl (machine)", eq: "machine", lvl: 1 },
+        { name: "Spider Curl", eq: "dumbbell", lvl: 2 },
+        { name: "Cable Curl (bar)", eq: "cable", lvl: 1 },
+        { name: "Cable Curl (rope)", eq: "cable", lvl: 1 },
+        { name: "Cable Hammer Curl", eq: "cable", lvl: 1 },
+        { name: "Drag Curl", eq: "barbell", lvl: 2 },
+        { name: "Reverse Curl", eq: "barbell", lvl: 2 },
+        { name: "Zottman Curl", eq: "dumbbell", lvl: 2 },
+        { name: "21s", eq: "barbell", lvl: 2 },
+        { name: "Chin-ups (bicep focus)", eq: "bodyweight", lvl: 2 },
+      ],
+      Triceps: [
+        { name: "Close-grip Bench Press", eq: "barbell", lvl: 2 },
+        { name: "Skullcrushers (EZ)", eq: "barbell", lvl: 2 },
+        { name: "Skullcrushers (DB)", eq: "dumbbell", lvl: 2 },
+        { name: "JM Press", eq: "barbell", lvl: 3 },
+        { name: "Dips (tricep-focused)", eq: "bodyweight", lvl: 2 },
+        { name: "Bench Dips", eq: "bodyweight", lvl: 1 },
+        { name: "Tricep Pushdown (rope)", eq: "cable", lvl: 1 },
+        { name: "Tricep Pushdown (bar)", eq: "cable", lvl: 1 },
+        { name: "Tricep Pushdown (V-bar)", eq: "cable", lvl: 1 },
+        { name: "Reverse-grip Pushdown", eq: "cable", lvl: 2 },
+        { name: "Overhead Cable Extension", eq: "cable", lvl: 1 },
+        { name: "Overhead DB Extension", eq: "dumbbell", lvl: 1 },
+        { name: "Single-arm DB Extension", eq: "dumbbell", lvl: 2 },
+        { name: "Tricep Kickback", eq: "dumbbell", lvl: 1 },
+        { name: "Diamond Push-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Tate Press", eq: "dumbbell", lvl: 2 },
+        { name: "Cable Kickback", eq: "cable", lvl: 1 },
+        { name: "Machine Tricep Press", eq: "machine", lvl: 1 },
+        { name: "Smith Close-grip Bench", eq: "smith", lvl: 1 },
+        { name: "Tricep Dips (machine)", eq: "machine", lvl: 1 },
+      ],
+      Abs: [
+        { name: "Plank", eq: "bodyweight", lvl: 1 },
+        { name: "Side Plank", eq: "bodyweight", lvl: 1 },
+        { name: "Crunches", eq: "bodyweight", lvl: 1 },
+        { name: "Bicycle Crunches", eq: "bodyweight", lvl: 1 },
+        { name: "Reverse Crunch", eq: "bodyweight", lvl: 1 },
+        { name: "Russian Twist", eq: "bodyweight", lvl: 1 },
+        { name: "Hanging Leg Raise", eq: "bodyweight", lvl: 3 },
+        { name: "Hanging Knee Raise", eq: "bodyweight", lvl: 2 },
+        { name: "Toes-to-bar", eq: "bodyweight", lvl: 3 },
+        { name: "V-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Cable Crunch", eq: "cable", lvl: 1 },
+        { name: "Decline Sit-ups", eq: "bodyweight", lvl: 1 },
+        { name: "Mountain Climbers", eq: "bodyweight", lvl: 1 },
+        { name: "Dead Bug", eq: "bodyweight", lvl: 1 },
+        { name: "Bird Dog", eq: "bodyweight", lvl: 1 },
+        { name: "Ab Wheel Rollout", eq: "bodyweight", lvl: 3 },
+        { name: "Hollow Body Hold", eq: "bodyweight", lvl: 2 },
+        { name: "Flutter Kicks", eq: "bodyweight", lvl: 1 },
+        { name: "Pallof Press", eq: "cable", lvl: 1 },
+        { name: "Cable Woodchop", eq: "cable", lvl: 1 },
+        { name: "Plate Twist", eq: "bodyweight", lvl: 1 },
+        { name: "Dragon Flag", eq: "bodyweight", lvl: 3 },
+        { name: "L-sit", eq: "bodyweight", lvl: 3 },
+      ],
+    };
+
+    // Composed splits: PPL pulls from multiple muscle groups, Bro keeps them isolated.
+    const PPL_EXERCISES = {
+      Push: [...EXERCISES.Chest, ...EXERCISES.Shoulders, ...EXERCISES.Triceps],
+      Pull: [...EXERCISES.Back, ...EXERCISES.Biceps],
+      Legs: [...EXERCISES.Legs, ...EXERCISES.Abs],
+    };
+
+    const BRO_EXERCISES = {
+      Chest: EXERCISES.Chest,
+      Back: EXERCISES.Back,
+      Shoulders: EXERCISES.Shoulders,
+      Legs: [...EXERCISES.Legs, ...EXERCISES.Abs],
+      Arms: [...EXERCISES.Biceps, ...EXERCISES.Triceps],
+    };
+
+    // Default starter exercises per session — these get pre-loaded when you tap "Start".
+    // Everything else is in the picker. Names must match `EXERCISES` library.
+    const DEFAULT_WORKOUTS = {
+      PPL: {
+        Push: ["Barbell Bench Press", "Incline Dumbbell Press", "Overhead Press (dumbbell)", "Lateral Raise (DB)", "Tricep Pushdown (rope)", "Skullcrushers (EZ)"],
+        Pull: ["Pull-ups", "Barbell Row (overhand)", "Lat Pulldown (wide)", "Face Pull", "Barbell Curl", "Hammer Curl"],
+        Legs: ["Back Squat", "Romanian Deadlift", "Leg Press", "Leg Curl (lying)", "Calf Raise (standing)", "Plank"],
+      },
+      BRO: {
+        Chest: ["Barbell Bench Press", "Incline Dumbbell Press", "Cable Fly (mid)", "Dips (chest-focused)", "Push-ups"],
+        Back: ["Conventional Deadlift", "Pull-ups", "Barbell Row (overhand)", "Lat Pulldown (wide)", "Face Pull"],
+        Shoulders: ["Overhead Press (dumbbell)", "Lateral Raise (DB)", "Front Raise (DB)", "Rear Delt Fly (DB)", "Shrug (barbell)"],
+        Legs: ["Back Squat", "Romanian Deadlift", "Leg Press", "Walking Lunges", "Calf Raise (standing)", "Plank"],
+        Arms: ["Barbell Curl", "Hammer Curl", "Tricep Pushdown (rope)", "Skullcrushers (EZ)", "Cable Curl (rope)"],
+      },
+    };
+
+    const EQ_LABEL = { barbell: "Barbell", dumbbell: "Dumbbell", cable: "Cable", machine: "Machine", smith: "Smith", bodyweight: "Bodyweight" };
+    const EQ_COLOR = { barbell: "#a3e635", dumbbell: "#38bdf8", cable: "#f59e0b", machine: "#a78bfa", smith: "#fb7185", bodyweight: "#94a3b8" };
+
+    // ============ AVATAR BODY MORPHING ============
+    // Returns SVG path string for a humanoid silhouette.
+    // progress: 0 = starting body (heavier), 1 = goal body (leaner).
+    function computeBodyPath(progress, gender = "male") {
+      const female = gender === "female";
+      // [start_width, goal_width] half-widths from center for each body region
+      const W = {
+        shoulder: female ? [50, 46] : [62, 58],
+        chest:    female ? [46, 44] : [56, 52],
+        waist:    female ? [54, 34] : [58, 38],
+        hip:      female ? [58, 50] : [54, 50],
+        thigh:    female ? [25, 22] : [27, 24],
+        calf:     female ? [16, 15] : [18, 17],
+      };
+      const lerp = (k) => W[k][0] + (W[k][1] - W[k][0]) * progress;
+      const sh = lerp("shoulder"), ch = lerp("chest"), wa = lerp("waist");
+      const hi = lerp("hip"), th = lerp("thigh"), ca = lerp("calf");
+
+      const cx = 100;
+      const Y_SH = 90, Y_CH = 125, Y_WA = 170, Y_HIP = 210;
+      const Y_KNEE = 295, Y_ANKLE = 380, CR = 5; // crotch half-width
+
+      return `
+        M ${cx + sh} ${Y_SH}
+        Q ${cx + ch + 3} ${Y_CH - 8} ${cx + ch} ${Y_CH}
+        Q ${cx + wa + 5} ${Y_WA - 12} ${cx + wa} ${Y_WA}
+        Q ${cx + hi + 3} ${Y_HIP - 8} ${cx + hi} ${Y_HIP}
+        L ${cx + th} ${Y_KNEE}
+        L ${cx + ca} ${Y_ANKLE}
+        L ${cx + CR} ${Y_ANKLE}
+        L ${cx + CR + 1} ${Y_KNEE}
+        L ${cx + CR + 2} ${Y_HIP + 2}
+        L ${cx - CR - 2} ${Y_HIP + 2}
+        L ${cx - CR - 1} ${Y_KNEE}
+        L ${cx - CR} ${Y_ANKLE}
+        L ${cx - ca} ${Y_ANKLE}
+        L ${cx - th} ${Y_KNEE}
+        L ${cx - hi} ${Y_HIP}
+        Q ${cx - hi - 3} ${Y_HIP - 8} ${cx - wa} ${Y_WA}
+        Q ${cx - wa - 5} ${Y_WA - 12} ${cx - ch} ${Y_CH}
+        Q ${cx - ch - 3} ${Y_CH - 8} ${cx - sh} ${Y_SH}
+        Z
+      `;
+    }
+
+    // ============ TIPS ENGINE ============
+    const TIPS = [
+      { cat: "protein", title: "Hit your protein", body: "Aim for 1.6–2g per kg bodyweight. Protein preserves muscle in a deficit and keeps you full longer than carbs or fat.", iconKey: "apple",
+        trigger: (c) => c.proteinPct < 0.7 },
+      { cat: "water", title: "Drink up", body: "Thirst often masquerades as hunger. Down a glass of water before reaching for snacks — you'll save 100–200 kcal easily.", iconKey: "droplet",
+        trigger: (c) => c.water < 4 },
+      { cat: "consistency", title: "Show up imperfectly", body: "A short 20-min workout always beats the perfect one you skipped. Consistency compounds — intensity doesn't.", iconKey: "activity",
+        trigger: (c) => c.adherence < 0.5 },
+      { cat: "deficit", title: "Ease back tomorrow", body: "You're well over target today. No need to crash-cut tomorrow — just return to your normal calories. One day rarely matters.", iconKey: "target",
+        trigger: (c) => c.calOverPct > 1.15 },
+      { cat: "lift", title: "Lift heavy, lose fat", body: "Strength training preserves muscle while you cut. Skip lifting and a chunk of lost weight will be muscle, not fat.", iconKey: "dumbbell" },
+      { cat: "sleep", title: "Sleep is fat-loss", body: "Poor sleep raises ghrelin (hunger hormone) and tanks willpower. Aim for 7–9 hours — it's literally free fat loss.", iconKey: "heart" },
+      { cat: "neat", title: "Walk more, every day", body: "10k steps adds ~300–400 kcal of daily burn. NEAT (non-exercise activity) is the biggest leverage point most people ignore.", iconKey: "activity" },
+      { cat: "carbs", title: "Don't fear carbs", body: "Carbs aren't the enemy — total calories are. Eat the foods you enjoy in moderation and the diet sticks long-term.", iconKey: "apple" },
+      { cat: "trend", title: "Trust the trend", body: "Weight fluctuates 1–3 kg daily from water, sodium, and food in your gut. Look at weekly averages, not daily numbers.", iconKey: "trending" },
+      { cat: "slow", title: "Eat slowly", body: "Your gut takes ~20 minutes to signal fullness. Slow eating = less overeating, no calorie counting needed.", iconKey: "clock" },
+      { cat: "fiber", title: "Volume hack: fiber", body: "Vegetables and fruit fill you up for almost no calories. A big salad before dinner cuts your main-course intake naturally.", iconKey: "apple" },
+      { cat: "alcohol", title: "Watch liquid calories", body: "Beer, juice, and lattes hide hundreds of calories. They don't fill you up — your stomach barely notices them.", iconKey: "droplet" },
+    ];
+
+    const TIP_ICONS = {
+      apple: Apple, droplet: Droplet, activity: Activity, target: Target,
+      dumbbell: Dumbbell, heart: Heart, trending: TrendingUp, clock: Clock,
+    };
+
+    function pickTip(ctx) {
+      const triggered = TIPS.filter((t) => t.trigger?.(ctx));
+      if (triggered.length) return triggered[ctx.tipIdx % triggered.length];
+      const general = TIPS.filter((t) => !t.trigger);
+      return general[ctx.tipIdx % general.length];
+    }
+
+    // ============ HELPERS ============
+    const todayKey = () => new Date().toISOString().slice(0, 10);
+    const fmtDate = (s) => new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    const calcBMR = (p) => {
+      if (!p) return 1500;
+      const { weight, height, age, gender } = p;
+      return gender === "female"
+        ? 10 * weight + 6.25 * height - 5 * age - 161
+        : 10 * weight + 6.25 * height - 5 * age + 5;
+    };
+
+    const calcTDEE = (p, workoutBoost = false) => {
+      const bmr = calcBMR(p);
+      const factor = workoutBoost ? 1.55 : 1.375;
+      return Math.round(bmr * factor);
+    };
+
+    // ============ STORAGE LAYER ============
+    const useStore = (key, initial) => {
+      const [val, setVal] = useState(initial);
+      const [loaded, setLoaded] = useState(false);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const r = await window.storage.get(key);
+            if (r && r.value) setVal(JSON.parse(r.value));
+          } catch (e) { /* not found = use initial */ }
+          setLoaded(true);
+        })();
+      }, [key]);
+
+      const save = async (next) => {
+        setVal(next);
+        try { await window.storage.set(key, JSON.stringify(next)); } catch (e) {}
+      };
+
+      return [val, save, loaded];
+    };
+
+    // ============ ROOT APP ============
+    function App() {
+      const [profile, setProfile] = useStore("ftp:profile", null);
+      const [weights, setWeights] = useStore("ftp:weights", []);
+      const [workouts, setWorkouts] = useStore("ftp:workouts", []);
+      const [meals, setMeals] = useStore("ftp:meals", []);
+      const [water, setWater] = useStore("ftp:water", {});
+      const [measurements, setMeasurements] = useStore("ftp:measurements", []);
+      const [streak, setStreak] = useStore("ftp:streak", { count: 0, last: null });
+      const [tab, setTab] = useState("home");
+
+      // Update streak when user logs activity today
+      useEffect(() => {
+        const today = todayKey();
+        if (streak.last === today) return;
+        const hasActivity =
+          meals.some(m => m.date === today) ||
+          workouts.some(w => w.date === today);
+        if (hasActivity) {
+          const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+          const newCount = streak.last === yest ? streak.count + 1 : 1;
+          setStreak({ count: newCount, last: today });
+        }
+      }, [meals, workouts]);
+
+      if (!profile) {
+        return <Onboarding onComplete={(p) => {
+          setProfile(p);
+          setWeights([{ date: todayKey(), weight: p.weight }]);
+        }} />;
+      }
+
+      const screenProps = {
+        profile, setProfile,
+        weights, setWeights,
+        workouts, setWorkouts,
+        meals, setMeals,
+        water, setWater,
+        measurements, setMeasurements,
+        streak,
+        setTab
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-0 sm:p-6 font-sans">
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+            * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+            .mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum'; }
+            .scrollbar-hide::-webkit-scrollbar { display: none; }
+            .scrollbar-hide { scrollbar-width: none; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+            .fade-in { animation: fadeIn 0.35s ease-out; }
+            @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(163,230,53,0.5); } 70% { box-shadow: 0 0 0 12px rgba(163,230,53,0); } 100% { box-shadow: 0 0 0 0 rgba(163,230,53,0); } }
+            .pulse-ring { animation: pulse-ring 2s infinite; }
+          `}</style>
+
+          <div className="w-full max-w-md min-h-screen sm:min-h-0 sm:h-[860px] sm:rounded-[40px] bg-zinc-950 sm:border sm:border-zinc-800 overflow-hidden flex flex-col relative shadow-2xl">
+            {/* Top status indicator */}
+            <div className="hidden sm:flex justify-center pt-3 pb-1">
+              <div className="w-32 h-1.5 bg-zinc-800 rounded-full" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto scrollbar-hide pb-24">
+              {tab === "home" && <Dashboard {...screenProps} />}
+              {tab === "workout" && <WorkoutScreen {...screenProps} />}
+              {tab === "nutrition" && <NutritionScreen {...screenProps} />}
+              {tab === "progress" && <ProgressScreen {...screenProps} />}
+              {tab === "profile" && <ProfileScreen {...screenProps} />}
+            </div>
+
+            <BottomNav tab={tab} setTab={setTab} />
+          </div>
+        </div>
+      );
+    }
+
+    // ============ ONBOARDING ============
+    function Onboarding({ onComplete }) {
+      const [step, setStep] = useState(0);
+      const [data, setData] = useState({
+        name: "", gender: "male", age: 25,
+        height: 170, weight: 75, goalWeight: 70,
+        durationDays: 60, noTracking: false
+      });
+
+      const update = (k, v) => setData({ ...data, [k]: v });
+
+      const next = () => {
+        if (step < 4) setStep(step + 1);
+        else {
+          onComplete({ ...data, startDate: todayKey(), startWeight: data.weight });
+        }
+      };
+
+      const totalLoss = (data.weight - data.goalWeight).toFixed(1);
+      const weeklyTarget = (totalLoss / (data.durationDays / 7)).toFixed(2);
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-zinc-900 via-zinc-950 to-black flex flex-col p-6 fade-in">
+          {/* Logo */}
+          <div className="pt-8 mb-6">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: ACCENT }}>
+                <Flame className="w-5 h-5 text-zinc-900" />
+              </div>
+              <span className="text-zinc-100 font-bold text-lg tracking-tight">FitTrack <span style={{ color: ACCENT }}>Pro</span></span>
+            </div>
+          </div>
+
+          {/* Progress dots */}
+          <div className="flex gap-1.5 mb-8">
+            {[0,1,2,3,4].map(i => (
+              <div key={i} className="h-1 flex-1 rounded-full transition-all duration-300"
+                style={{ background: i <= step ? ACCENT : "#27272a" }} />
+            ))}
+          </div>
+
+          <div className="flex-1">
+            {step === 0 && (
+              <div className="fade-in">
+                <h1 className="text-3xl font-bold text-zinc-100 leading-tight mb-2">Let's get to know you</h1>
+                <p className="text-zinc-500 mb-8">A few details so we can build your plan.</p>
+
+                <Field label="Your name">
+                  <input value={data.name} onChange={e => update("name", e.target.value)}
+                    placeholder="e.g. Arjun"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 text-zinc-100 placeholder-zinc-600 focus:border-lime-500 focus:outline-none" />
+                </Field>
+
+                <Field label="Gender">
+                  <div className="grid grid-cols-2 gap-2">
+                    {["male", "female"].map(g => (
+                      <button key={g} onClick={() => update("gender", g)}
+                        className={`py-3.5 rounded-xl border font-medium capitalize transition ${
+                          data.gender === g
+                            ? "bg-lime-400 text-zinc-900 border-lime-400"
+                            : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700"
+                        }`}>
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="Age">
+                  <NumberStepper value={data.age} onChange={v => update("age", v)} min={13} max={90} suffix="yrs" />
+                </Field>
+              </div>
+            )}
+
+            {step === 1 && (
+              <div className="fade-in">
+                <h1 className="text-3xl font-bold text-zinc-100 mb-2">Body stats</h1>
+                <p className="text-zinc-500 mb-8">We use these to calculate your daily calorie needs.</p>
+
+                <Field label="Height (cm)">
+                  <NumberStepper value={data.height} onChange={v => update("height", v)} min={120} max={220} step={1} suffix="cm" />
+                </Field>
+
+                <Field label="Current weight (kg)">
+                  <NumberStepper value={data.weight} onChange={v => update("weight", v)} min={30} max={250} step={0.5} suffix="kg" decimals={1} />
+                </Field>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="fade-in">
+                <h1 className="text-3xl font-bold text-zinc-100 mb-2">Your goal weight</h1>
+                <p className="text-zinc-500 mb-8">Where you want to be.</p>
+
+                <Field label="Goal weight (kg)">
+                  <NumberStepper value={data.goalWeight} onChange={v => update("goalWeight", v)} min={30} max={data.weight - 0.5} step={0.5} suffix="kg" decimals={1} />
+                </Field>
+
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mt-4">
+                  <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Total to lose</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-zinc-100 mono">{totalLoss}</span>
+                    <span className="text-zinc-500">kg</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="fade-in">
+                <h1 className="text-3xl font-bold text-zinc-100 mb-2">Timeline</h1>
+                <p className="text-zinc-500 mb-8">How long do you want to give yourself?</p>
+
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  {[30, 60, 90, 120, 180, 365].map(d => (
+                    <button key={d} onClick={() => update("durationDays", d)}
+                      className={`py-4 rounded-xl border font-medium transition ${
+                        data.durationDays === d
+                          ? "bg-lime-400 text-zinc-900 border-lime-400"
+                          : "bg-zinc-900 text-zinc-300 border-zinc-800"
+                      }`}>
+                      <div className="text-lg font-bold mono">{d}</div>
+                      <div className="text-xs opacity-70">days</div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                  <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Required pace</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold mono" style={{ color: ACCENT }}>{weeklyTarget}</span>
+                    <span className="text-zinc-500">kg / week</span>
+                  </div>
+                  <p className="text-xs text-zinc-600 mt-3">
+                    {weeklyTarget > 1 ? "⚠ Aggressive — best to extend timeline" : weeklyTarget < 0.3 ? "Very gradual — sustainable" : "Healthy and realistic pace"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="fade-in">
+                <h1 className="text-3xl font-bold text-zinc-100 mb-2">Tracking style</h1>
+                <p className="text-zinc-500 mb-8">Pick what fits you. You can change this anytime.</p>
+
+                {[
+                  { key: false, title: "Full tracking", desc: "Log every meal for accurate calorie counts.", icon: Apple },
+                  { key: true, title: "No-calorie mode", desc: "Skip food logging. We'll estimate from your activity.", icon: Zap }
+                ].map(opt => {
+                  const Icon = opt.icon;
+                  return (
+                    <button key={String(opt.key)} onClick={() => update("noTracking", opt.key)}
+                      className={`w-full text-left p-5 rounded-2xl border mb-3 flex gap-4 items-start transition ${
+                        data.noTracking === opt.key
+                          ? "border-lime-400 bg-lime-400/5"
+                          : "border-zinc-800 bg-zinc-900"
+                      }`}>
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                        data.noTracking === opt.key ? "bg-lime-400 text-zinc-900" : "bg-zinc-800 text-zinc-400"
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-zinc-100">{opt.title}</div>
+                        <div className="text-sm text-zinc-500 mt-0.5">{opt.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-6">
+            {step > 0 && (
+              <button onClick={() => setStep(step - 1)}
+                className="px-5 py-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-400 font-semibold">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            <button onClick={next}
+              disabled={step === 0 && !data.name.trim()}
+              className="flex-1 py-4 rounded-2xl font-bold text-zinc-900 flex items-center justify-center gap-2 disabled:opacity-40"
+              style={{ background: ACCENT }}>
+              {step === 4 ? "Start my journey" : "Continue"}
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const Field = ({ label, children }) => (
+      <div className="mb-5">
+        <label className="block text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-2">{label}</label>
+        {children}
+      </div>
+    );
+
+    const NumberStepper = ({ value, onChange, min = 0, max = 999, step = 1, suffix = "", decimals = 0 }) => (
+      <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(decimals)))}
+          className="px-5 py-3.5 text-zinc-400 hover:text-lime-400 active:bg-zinc-800 text-xl font-light">−</button>
+        <div className="flex-1 text-center mono">
+          <span className="text-2xl font-bold text-zinc-100">{Number(value).toFixed(decimals)}</span>
+          <span className="text-zinc-500 text-sm ml-1">{suffix}</span>
+        </div>
+        <button onClick={() => onChange(Math.min(max, +(value + step).toFixed(decimals)))}
+          className="px-5 py-3.5 text-zinc-400 hover:text-lime-400 active:bg-zinc-800 text-xl font-light">+</button>
+      </div>
+    );
+
+    // ============ AVATAR CARD ============
+    function AvatarCard({ profile, currentWeight, todayCal, calorieTarget, todayProtein, proteinTarget, todayWater, adherence }) {
+      const [tipIdx, setTipIdx] = useState(0);
+      const [showFullTip, setShowFullTip] = useState(false);
+      const [compareMode, setCompareMode] = useState(false);
+
+      const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+      const lostSoFar = Math.max(0, profile.startWeight - currentWeight);
+      const progress = Math.max(0, Math.min(1, lostSoFar / totalLoss));
+
+      const tipCtx = {
+        proteinPct: proteinTarget ? todayProtein / proteinTarget : 1,
+        water: todayWater,
+        adherence,
+        calOverPct: calorieTarget ? todayCal / calorieTarget : 0,
+        tipIdx,
+      };
+      const tip = pickTip(tipCtx);
+      const TipIcon = TIP_ICONS[tip.iconKey] || Heart;
+
+      const bodyPath = useMemo(() => computeBodyPath(progress, profile.gender), [progress, profile.gender]);
+      const goalPath = useMemo(() => computeBodyPath(1, profile.gender), [profile.gender]);
+      const startPath = useMemo(() => computeBodyPath(0, profile.gender), [profile.gender]);
+
+      const cycleTip = (e) => { e?.stopPropagation(); setTipIdx((i) => i + 1); };
+
+      return (
+        <>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 relative overflow-hidden">
+            {/* Subtle ambient glow behind avatar */}
+            <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-32 h-32 rounded-full opacity-20 blur-3xl"
+              style={{ background: ACCENT }} />
+
+            <div className="flex gap-4 items-stretch relative z-10">
+              {/* Avatar SVG */}
+              <button onClick={() => setCompareMode((c) => !c)}
+                className="relative shrink-0 group"
+                title="Tap to compare with goal">
+                <svg viewBox="0 0 200 410" className="w-24 h-48">
+                  <defs>
+                    <linearGradient id="bodyGrad" x1="0" y1="0" x2="0.5" y2="1">
+                      <stop offset="0%" stopColor="#bef264" />
+                      <stop offset="60%" stopColor="#a3e635" />
+                      <stop offset="100%" stopColor="#65a30d" />
+                    </linearGradient>
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="2" result="b" />
+                      <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </defs>
+
+                  {/* Goal silhouette outline (always visible as target) */}
+                  <path d={goalPath} fill="none" stroke={ACCENT} strokeWidth="1" strokeDasharray="3 3" opacity="0.45" />
+                  <circle cx="100" cy="45" r="22" fill="none" stroke={ACCENT} strokeWidth="1" strokeDasharray="3 3" opacity="0.45" />
+
+                  {/* Starting silhouette ghost (only in compare mode) */}
+                  {compareMode && (
+                    <>
+                      <path d={startPath} fill="#52525b" opacity="0.35" />
+                      <circle cx="100" cy="45" r="22" fill="#52525b" opacity="0.35" />
+                    </>
+                  )}
+
+                  {/* Current body */}
+                  <g style={{ transition: "all 0.6s ease-out" }} filter="url(#glow)">
+                    <circle cx="100" cy="45" r="22" fill="url(#bodyGrad)" />
+                    <rect x="92" y="62" width="16" height="14" fill="url(#bodyGrad)" />
+                    <path d={bodyPath} fill="url(#bodyGrad)" />
+                  </g>
+
+                  {/* Muscle definition lines that fade in as progress increases past 40% */}
+                  {progress > 0.4 && (
+                    <g opacity={Math.min(1, (progress - 0.4) * 2.2)} stroke="#365314" strokeWidth="1.2" fill="none" strokeLinecap="round">
+                      {/* Pec separation */}
+                      <line x1="100" y1="98" x2="100" y2="128" />
+                      {/* Ab lines */}
+                      <line x1="92" y1="138" x2="92" y2="170" />
+                      <line x1="100" y1="138" x2="100" y2="170" />
+                      <line x1="108" y1="138" x2="108" y2="170" />
+                      <line x1="86" y1="148" x2="114" y2="148" />
+                      <line x1="86" y1="160" x2="114" y2="160" />
+                    </g>
+                  )}
+                </svg>
+
+                {/* Compare badge */}
+                <div className={`absolute -top-1 -right-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition ${
+                  compareMode ? "bg-lime-400 text-zinc-900" : "bg-zinc-800 text-zinc-500"
+                }`}>
+                  {compareMode ? "Before" : "Compare"}
+                </div>
+              </button>
+
+              {/* Stats + tip */}
+              <div className="flex-1 min-w-0 flex flex-col">
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Transformation</div>
+                    <div className="text-3xl font-bold text-zinc-100 mono leading-tight">{Math.round(progress * 100)}%</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Lost</div>
+                    <div className="text-sm font-bold mono" style={{ color: ACCENT }}>{lostSoFar.toFixed(1)} kg</div>
+                  </div>
+                </div>
+
+                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-2 mb-2.5">
+                  <div className="h-full rounded-full transition-all duration-700 relative"
+                    style={{ width: `${progress * 100}%`, background: `linear-gradient(90deg, #65a30d, ${ACCENT})` }}>
+                    <div className="absolute inset-0 rounded-full opacity-50"
+                      style={{ background: ACCENT, filter: "blur(3px)" }} />
+                  </div>
+                </div>
+
+                {/* Coach tip bubble */}
+                <button onClick={() => setShowFullTip(true)}
+                  className="bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-2.5 text-left transition flex-1 flex flex-col justify-center">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <TipIcon className="w-3 h-3" style={{ color: ACCENT }} />
+                    <span className="text-[10px] font-bold text-lime-300 uppercase tracking-wider">Coach</span>
+                    <span className="text-[10px] text-zinc-500 truncate font-semibold">· {tip.title}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-snug line-clamp-2">{tip.body}</p>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Full tip modal */}
+          {showFullTip && (
+            <Modal onClose={() => setShowFullTip(false)} title="Coach's tip">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(163,230,53,0.15)" }}>
+                  <TipIcon className="w-5 h-5" style={{ color: ACCENT }} />
+                </div>
+                <div>
+                  <div className="text-xs text-lime-400 font-bold uppercase tracking-wider">{tip.cat}</div>
+                  <div className="text-lg font-bold text-zinc-100 leading-tight">{tip.title}</div>
+                </div>
+              </div>
+              <p className="text-zinc-400 leading-relaxed mb-5">{tip.body}</p>
+
+              {/* Quick stats context */}
+              <div className="grid grid-cols-2 gap-2 mb-5">
+                <div className="bg-zinc-800 rounded-xl p-3">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Protein today</div>
+                  <div className="text-base font-bold text-zinc-100 mono">{Math.round(todayProtein)}<span className="text-xs text-zinc-500">/{proteinTarget}g</span></div>
+                </div>
+                <div className="bg-zinc-800 rounded-xl p-3">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Water today</div>
+                  <div className="text-base font-bold text-zinc-100 mono">{todayWater}<span className="text-xs text-zinc-500">/8</span></div>
+                </div>
+              </div>
+
+              <button onClick={cycleTip}
+                className="w-full py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2"
+                style={{ background: ACCENT }}>
+                Next tip <ArrowRight className="w-4 h-4" />
+              </button>
+            </Modal>
+          )}
+        </>
+      );
+    }
+
+    // ============ DASHBOARD ============
+    function Dashboard({ profile, weights, workouts, meals, water, streak, setTab, setWeights, setWater }) {
+      const today = todayKey();
+      const todayMeals = meals.filter(m => m.date === today);
+      const todayWorkout = workouts.find(w => w.date === today);
+      const todayWater = water[today] || 0;
+
+      const todayCal = todayMeals.reduce((s, m) => s + m.foods.reduce((sf, f) => sf + f.cal * f.qty, 0), 0);
+      const todayProtein = todayMeals.reduce((s, m) => s + m.foods.reduce((sf, f) => sf + f.p * f.qty, 0), 0);
+
+      const currentWeight = weights.length ? weights[weights.length - 1].weight : profile.weight;
+
+      // Workout consistency over last 14 days
+      const workoutDaysLast14 = useMemo(() => {
+        let count = 0;
+        for (let i = 0; i < 14; i++) {
+          const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+          if (workouts.some(w => w.date === d)) count++;
+        }
+        return count;
+      }, [workouts]);
+
+      const adherence = Math.round((workoutDaysLast14 / 14) * 100);
+      const consistent = adherence >= 50;
+
+      // Calorie targets and predictions
+      const tdee = calcTDEE(profile, consistent);
+      const totalLoss = profile.startWeight - profile.goalWeight;
+      const dailyDeficitTarget = Math.round((totalLoss * KCAL_PER_KG_FAT) / profile.durationDays);
+      const calorieTarget = Math.max(1200, tdee - dailyDeficitTarget);
+
+      const calRemaining = calorieTarget - todayCal;
+      const calPct = Math.min(100, (todayCal / calorieTarget) * 100);
+
+      // Goal progress
+      const lostSoFar = profile.startWeight - currentWeight;
+      const goalPct = Math.max(0, Math.min(100, (lostSoFar / totalLoss) * 100));
+
+      const startDate = new Date(profile.startDate);
+      const dayDelta = Math.floor((Date.now() - startDate.getTime()) / 86400000);
+      const daysRemaining = Math.max(0, profile.durationDays - dayDelta);
+
+      // Predictions based on workout-adjusted TDEE
+      const expectedDailyDeficit = consistent ? dailyDeficitTarget * 1.1 : dailyDeficitTarget * 0.9;
+      const expectedWeeklyLoss = (expectedDailyDeficit * 7) / KCAL_PER_KG_FAT;
+      const expectedMonthlyLoss = (expectedDailyDeficit * 30) / KCAL_PER_KG_FAT;
+
+      const [showLogWeight, setShowLogWeight] = useState(false);
+      const [newWt, setNewWt] = useState(currentWeight);
+
+      const logWeight = () => {
+        const filtered = weights.filter(w => w.date !== today);
+        setWeights([...filtered, { date: today, weight: +newWt }].sort((a, b) => a.date.localeCompare(b.date)));
+        setShowLogWeight(false);
+      };
+
+      return (
+        <div className="px-5 pt-5 fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="text-zinc-500 text-sm">Hey {profile.name?.split(" ")[0] || "there"} 👋</div>
+              <div className="text-zinc-100 font-bold text-lg">Let's crush today.</div>
+            </div>
+            <div className="flex gap-2">
+              <button className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center relative">
+                <Bell className="w-4 h-4 text-zinc-400" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full" style={{ background: ACCENT }} />
+              </button>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-zinc-900"
+                style={{ background: ACCENT }}>
+                {profile.name?.[0]?.toUpperCase() || "U"}
+              </div>
+            </div>
+          </div>
+
+          {/* Hero card – weight + goal */}
+          <div className="rounded-3xl p-5 mb-4 relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, ${ACCENT} 0%, ${ACCENT_DARK} 100%)` }}>
+            <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
+            <div className="absolute -right-20 -bottom-16 w-48 h-48 rounded-full bg-black/10" />
+
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <div className="text-zinc-900/60 text-xs font-semibold uppercase tracking-wider">Current weight</div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-5xl font-bold text-zinc-900 mono">{currentWeight.toFixed(1)}</span>
+                    <span className="text-zinc-900/70 font-semibold">kg</span>
+                  </div>
+                </div>
+                <button onClick={() => { setNewWt(currentWeight); setShowLogWeight(true); }}
+                  className="bg-zinc-900 text-lime-400 rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> Log
+                </button>
+              </div>
+
+              <div className="bg-zinc-900/20 backdrop-blur rounded-2xl p-3.5 mt-4">
+                <div className="flex justify-between text-xs font-semibold text-zinc-900 mb-2">
+                  <span>Goal: {profile.goalWeight} kg</span>
+                  <span>{goalPct.toFixed(0)}% there</span>
+                </div>
+                <div className="h-2 bg-zinc-900/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-zinc-900 rounded-full transition-all duration-700"
+                    style={{ width: `${goalPct}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-zinc-900/70 mt-2 mono">
+                  <span>Lost: {lostSoFar.toFixed(1)} kg</span>
+                  <span>{daysRemaining} days left</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Transforming avatar + coach tip */}
+          <AvatarCard
+            profile={profile}
+            currentWeight={currentWeight}
+            todayCal={todayCal}
+            calorieTarget={calorieTarget}
+            todayProtein={todayProtein}
+            proteinTarget={Math.round(profile.weight * 1.8)}
+            todayWater={todayWater}
+            adherence={adherence / 100}
+          />
+
+          {/* Streak + workout */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Card>
+              <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-1">
+                <Flame className="w-3.5 h-3.5" style={{ color: "#fb923c" }} /> Streak
+              </div>
+              <div className="text-3xl font-bold text-zinc-100 mono">{streak.count}</div>
+              <div className="text-xs text-zinc-600">days in a row</div>
+            </Card>
+            <Card>
+              <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-1">
+                <Activity className="w-3.5 h-3.5" style={{ color: ACCENT }} /> Workout
+              </div>
+              <div className="text-base font-bold text-zinc-100 mt-1">
+                {todayWorkout ? <span style={{ color: ACCENT }}>✓ {todayWorkout.split}</span> : "Not yet"}
+              </div>
+              <button onClick={() => setTab("workout")} className="text-xs text-zinc-500 hover:text-zinc-300">
+                {todayWorkout ? "View →" : "Start →"}
+              </button>
+            </Card>
+          </div>
+
+          {/* Calories */}
+          <Card className="mb-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Today's calories</div>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-3xl font-bold text-zinc-100 mono">{Math.round(todayCal)}</span>
+                  <span className="text-zinc-500">/ {calorieTarget}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Remaining</div>
+                <div className={`text-2xl font-bold mono ${calRemaining < 0 ? "text-orange-400" : "text-lime-400"}`}>
+                  {calRemaining > 0 ? calRemaining : `+${Math.abs(calRemaining)}`}
+                </div>
+              </div>
+            </div>
+            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mb-3">
+              <div className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${calPct}%`,
+                  background: calPct > 100 ? "#fb923c" : ACCENT
+                }} />
+            </div>
+            <div className="flex gap-4 text-xs">
+              <span className="text-zinc-500">Protein: <span className="text-zinc-200 font-semibold mono">{Math.round(todayProtein)}g</span></span>
+              <span className="text-zinc-500">Water: <span className="text-zinc-200 font-semibold mono">{todayWater}/8</span></span>
+            </div>
+          </Card>
+
+          {/* Predictions */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Card>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                <span className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">This week</span>
+              </div>
+              <div className="text-2xl font-bold mono" style={{ color: ACCENT }}>−{expectedWeeklyLoss.toFixed(2)}</div>
+              <div className="text-xs text-zinc-600">kg expected</div>
+            </Card>
+            <Card>
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
+                <span className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">This month</span>
+              </div>
+              <div className="text-2xl font-bold mono" style={{ color: ACCENT }}>−{expectedMonthlyLoss.toFixed(1)}</div>
+              <div className="text-xs text-zinc-600">kg expected</div>
+            </Card>
+          </div>
+
+          {/* Water tracker */}
+          <Card className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Droplet className="w-4 h-4" style={{ color: "#38bdf8" }} />
+                <span className="text-zinc-100 font-semibold">Water intake</span>
+              </div>
+              <span className="text-sm text-zinc-500 mono">{todayWater}/8 glasses</span>
+            </div>
+            <div className="grid grid-cols-8 gap-1.5">
+              {Array.from({ length: 8 }).map((_, i) => {
+                const filled = i < todayWater;
+                return (
+                  <button key={i} onClick={() => setWater({ ...water, [today]: filled && i === todayWater - 1 ? i : i + 1 })}
+                    className="aspect-square rounded-lg flex items-center justify-center transition"
+                    style={{
+                      background: filled ? "#38bdf8" : "#27272a",
+                      border: `1px solid ${filled ? "#38bdf8" : "#3f3f46"}`
+                    }}>
+                    <Droplet className="w-3 h-3" style={{ color: filled ? "#fff" : "#52525b", fill: filled ? "#fff" : "transparent" }} />
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Status banner */}
+          <div className={`rounded-2xl p-4 mb-2 border ${
+            consistent
+              ? "bg-lime-400/10 border-lime-500/30"
+              : "bg-orange-400/10 border-orange-500/30"
+          }`}>
+            <div className="flex items-center gap-3">
+              {consistent ? <Trophy className="w-5 h-5 text-lime-400" /> : <Target className="w-5 h-5 text-orange-400" />}
+              <div className="flex-1">
+                <div className={`font-semibold text-sm ${consistent ? "text-lime-300" : "text-orange-300"}`}>
+                  {consistent ? "You're on track!" : "Behind schedule"}
+                </div>
+                <div className="text-xs text-zinc-400">
+                  {consistent
+                    ? `${adherence}% workout adherence — keep it up!`
+                    : `Only ${workoutDaysLast14}/14 workouts in last 2 weeks. Train ${4 - (workoutDaysLast14 % 4)}× this week to bounce back.`}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Log weight modal */}
+          {showLogWeight && (
+            <Modal onClose={() => setShowLogWeight(false)} title="Log today's weight">
+              <NumberStepper value={newWt} onChange={setNewWt} min={30} max={250} step={0.1} decimals={1} suffix="kg" />
+              <button onClick={logWeight}
+                className="w-full mt-4 py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2"
+                style={{ background: ACCENT }}>
+                <Save className="w-4 h-4" /> Save weight
+              </button>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
+    // ============ WEEKLY SCHEDULE ENGINE ============
+    // Returns a 7-entry plan (Mon..Sun) tuned to the user's weekly weight-loss target.
+    // Each entry: { type: "Push"|"Pull"|...|"Cardio"|"Rest", lift: bool }
+    function getWeeklySchedule(splitType, weeklyTargetKg) {
+      const tier = weeklyTargetKg > 0.7 ? "high" : weeklyTargetKg >= 0.4 ? "moderate" : "low";
+
+      const plans = {
+        PPL: {
+          high:     ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"],
+          moderate: ["Push", "Pull", "Legs", "Rest", "Push", "Pull", "Cardio"],
+          low:      ["Push", "Cardio", "Pull", "Rest", "Legs", "Cardio", "Rest"],
+        },
+        BRO: {
+          high:     ["Chest", "Back", "Shoulders", "Legs", "Arms", "Cardio", "Rest"],
+          moderate: ["Chest", "Back", "Shoulders", "Rest", "Legs", "Arms", "Cardio"],
+          low:      ["Chest", "Back", "Cardio", "Legs", "Rest", "Arms", "Rest"],
+        },
+      };
+
+      const sched = plans[splitType][tier].map((type) => ({
+        type,
+        lift: type !== "Rest" && type !== "Cardio",
+        rest: type === "Rest",
+        cardio: type === "Cardio",
+      }));
+
+      return { schedule: sched, tier };
+    }
+
+    function getScheduleRationale(weeklyTargetKg, tier, sessionCount, cardioCount) {
+      const trainingBurn = sessionCount * 280; // ~280 kcal/session avg
+      const cardioBurn = cardioCount * 320;
+      const totalWeeklyBurn = trainingBurn + cardioBurn;
+      if (tier === "high") {
+        return `Your ${weeklyTargetKg.toFixed(2)} kg/week target is aggressive — this plan packs ${sessionCount} lifting sessions${cardioCount ? ` + ${cardioCount} cardio` : ""} (~${totalWeeklyBurn} kcal training burn) to support the deficit while preserving muscle.`;
+      }
+      if (tier === "moderate") {
+        return `${sessionCount} lifts${cardioCount ? ` + ${cardioCount} cardio` : ""} = ~${totalWeeklyBurn} kcal of weekly training burn. Right-sized for your ${weeklyTargetKg.toFixed(2)} kg/week target — sustainable, builds the habit.`;
+      }
+      return `Gentle pace — ${sessionCount} lifts${cardioCount ? ` + ${cardioCount} cardio` : ""} (~${totalWeeklyBurn} kcal/week). At ${weeklyTargetKg.toFixed(2)} kg/week, fat loss is mostly nutrition-driven; train to keep muscle and feel strong.`;
+    }
+
+    // Returns ISO date string for Monday of the current ISO week
+    function getMondayOfWeek(d = new Date()) {
+      const dt = new Date(d);
+      const day = dt.getDay() || 7; // Sunday → 7
+      if (day !== 1) dt.setHours(-24 * (day - 1));
+      return dt.toISOString().slice(0, 10);
+    }
+
+    // ============ WEEKLY SCHEDULE CARD ============
+    function WeeklyScheduleCard({ profile, splitType, workouts, onStartDay }) {
+      const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+      const weeklyTarget = totalLoss / (profile.durationDays / 7);
+      const { schedule, tier } = useMemo(
+        () => getWeeklySchedule(splitType, weeklyTarget),
+        [splitType, weeklyTarget]
+      );
+
+      const todayStr = todayKey();
+      const monday = useMemo(() => getMondayOfWeek(), []);
+
+      // Build day-by-day view for current week
+      const days = useMemo(() => {
+        return schedule.map((entry, i) => {
+          const d = new Date(monday + "T00:00:00");
+          d.setDate(d.getDate() + i);
+          const dateStr = d.toISOString().slice(0, 10);
+          const completed = workouts.find((w) => w.date === dateStr && w.day === entry.type);
+          const isToday = dateStr === todayStr;
+          const isPast = dateStr < todayStr;
+          return {
+            ...entry,
+            dateStr,
+            dayLabel: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
+            completed,
+            isToday,
+            isPast,
+          };
+        });
+      }, [schedule, monday, workouts, todayStr]);
+
+      const sessionCount = schedule.filter((s) => s.lift).length;
+      const cardioCount = schedule.filter((s) => s.cardio).length;
+      const completedThisWeek = days.filter((d) => d.completed).length;
+      const tierColor = tier === "high" ? "#fb923c" : tier === "moderate" ? "#a3e635" : "#38bdf8";
+      const tierLabel = tier === "high" ? "Aggressive" : tier === "moderate" ? "Moderate" : "Gradual";
+
+      const today = days.find((d) => d.isToday);
+
+      return (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-5 relative overflow-hidden">
+          <div className="absolute -right-12 -top-12 w-32 h-32 rounded-full opacity-10 blur-3xl"
+            style={{ background: tierColor }} />
+
+          <div className="relative z-10">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <div className="text-zinc-500 text-[10px] uppercase tracking-wider font-semibold">This week's plan</div>
+                <div className="text-base font-bold text-zinc-100 mt-0.5">
+                  {sessionCount} lifts{cardioCount ? ` + ${cardioCount} cardio` : ""}
+                  <span className="text-xs text-zinc-500 font-medium ml-1.5">· {completedThisWeek}/{sessionCount} done</span>
+                </div>
+              </div>
+              <div className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                style={{ background: `${tierColor}1a`, color: tierColor }}>
+                {tierLabel}
+              </div>
+            </div>
+
+            {/* 7-day strip */}
+            <div className="grid grid-cols-7 gap-1.5 mb-3">
+              {days.map((d, i) => {
+                const lifting = d.lift;
+                const isRest = d.rest;
+                const isCardio = d.cardio;
+                const done = !!d.completed;
+                const missed = d.isPast && lifting && !done;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => lifting && onStartDay(d.type)}
+                    disabled={!lifting}
+                    className={`flex flex-col items-center py-2 px-1 rounded-xl border text-center transition relative ${
+                      d.isToday ? "border-lime-400" : "border-zinc-800"
+                    } ${lifting ? "hover:border-lime-400/60 active:scale-95" : "cursor-default"} ${
+                      done ? "bg-lime-400/10" : missed ? "bg-orange-400/5" : ""
+                    }`}
+                  >
+                    <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                      d.isToday ? "text-lime-400" : "text-zinc-500"
+                    }`}>
+                      {d.dayLabel}
+                    </span>
+                    <div className="my-1 flex items-center justify-center w-7 h-7">
+                      {done ? (
+                        <div className="w-6 h-6 rounded-full bg-lime-400 flex items-center justify-center">
+                          <Check className="w-3 h-3 text-zinc-900" strokeWidth={3} />
+                        </div>
+                      ) : isRest ? (
+                        <Heart className="w-3.5 h-3.5 text-zinc-600" />
+                      ) : isCardio ? (
+                        <Activity className="w-3.5 h-3.5" style={{ color: "#38bdf8" }} />
+                      ) : (
+                        <Dumbbell className="w-3.5 h-3.5" style={{ color: missed ? "#fb923c" : "#a3e635" }} />
+                      )}
+                    </div>
+                    <span className={`text-[10px] font-semibold leading-tight ${
+                      done ? "text-lime-300" : isRest ? "text-zinc-600" : isCardio ? "text-sky-400" : "text-zinc-300"
+                    }`}>
+                      {d.type === "Cardio" ? "Cardio" : d.type === "Rest" ? "Rest" : d.type}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Today's CTA */}
+            {today && today.lift && !today.completed && (
+              <button onClick={() => onStartDay(today.type)}
+                className="w-full py-3 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 mb-3"
+                style={{ background: ACCENT }}>
+                <Zap className="w-4 h-4" /> Start today's {today.type}
+              </button>
+            )}
+            {today && today.cardio && (
+              <div className="w-full py-2.5 rounded-xl bg-sky-400/10 border border-sky-400/20 text-center text-sm font-semibold text-sky-300 mb-3">
+                Today: 25–40 min cardio (zone 2 / steady)
+              </div>
+            )}
+            {today && today.rest && (
+              <div className="w-full py-2.5 rounded-xl bg-zinc-800 text-center text-sm font-semibold text-zinc-400 mb-3">
+                Rest day — recovery is when you grow
+              </div>
+            )}
+
+            {/* Rationale */}
+            <p className="text-[11px] text-zinc-500 leading-relaxed">
+              {getScheduleRationale(weeklyTarget, tier, sessionCount, cardioCount)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ============ EXERCISE PICKER MODAL ============
+    function ExercisePickerModal({ availableExercises, currentNames, onPick, onClose }) {
+      const [search, setSearch] = useState("");
+      const [eqFilter, setEqFilter] = useState("all");
+
+      const equipmentTypes = useMemo(() => {
+        const set = new Set(availableExercises.map((e) => e.eq));
+        return ["all", ...Array.from(set)];
+      }, [availableExercises]);
+
+      const filtered = availableExercises.filter((ex) => {
+        if (currentNames.includes(ex.name)) return false;
+        if (eqFilter !== "all" && ex.eq !== eqFilter) return false;
+        if (search && !ex.name.toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+      });
+
+      return (
+        <Modal onClose={onClose} title="Add exercise" fullHeight>
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search exercises..."
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none mb-3"
+          />
+
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2 mb-2">
+            {equipmentTypes.map((eq) => (
+              <button key={eq} onClick={() => setEqFilter(eq)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition ${
+                  eqFilter === eq
+                    ? "bg-lime-400 text-zinc-900 border-lime-400"
+                    : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600"
+                }`}>
+                {eq === "all" ? "All" : EQ_LABEL[eq]}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5 px-1">
+            {filtered.length} available
+          </div>
+
+          <div className="overflow-y-auto max-h-[55vh] scrollbar-hide -mx-1 px-1">
+            {filtered.length === 0 && (
+              <div className="text-center text-zinc-600 text-sm py-8">No exercises match. Try another filter.</div>
+            )}
+            {filtered.map((ex, i) => (
+              <button key={i} onClick={() => onPick(ex)}
+                className="w-full flex justify-between items-center p-3 bg-zinc-800 hover:bg-zinc-700 active:scale-[0.99] rounded-xl mb-1.5 text-left transition">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-1 h-8 rounded-full shrink-0" style={{ background: EQ_COLOR[ex.eq] }} />
+                  <div className="min-w-0">
+                    <div className="text-sm text-zinc-100 truncate">{ex.name}</div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
+                      <span>{EQ_LABEL[ex.eq]}</span>
+                      <span className="text-zinc-700">·</span>
+                      <span>{["beginner", "intermediate", "advanced"][ex.lvl - 1]}</span>
+                    </div>
+                  </div>
+                </div>
+                <Plus className="w-4 h-4 text-lime-400 shrink-0 ml-2" />
+              </button>
+            ))}
+          </div>
+        </Modal>
+      );
+    }
+
+    // ============ WORKOUT SCREEN ============
+    function WorkoutScreen({ profile, workouts, setWorkouts, setProfile }) {
+      const [splitType, setSplitType] = useState(profile.splitType || "PPL");
+      const [activeDay, setActiveDay] = useState(null); // e.g. "Push", "Chest"
+      const [editingWorkout, setEditingWorkout] = useState(null);
+
+      useEffect(() => {
+        if (splitType !== profile.splitType) setProfile({ ...profile, splitType });
+      }, [splitType]);
+
+      const today = todayKey();
+      const todayWorkout = workouts.find(w => w.date === today);
+
+      const days = splitType === "PPL" ? Object.keys(PPL_EXERCISES) : Object.keys(BRO_EXERCISES);
+
+      // Adherence
+      const last14 = useMemo(() => {
+        return Array.from({ length: 14 }, (_, i) => {
+          const d = new Date(Date.now() - (13 - i) * 86400000).toISOString().slice(0, 10);
+          return { date: d, has: workouts.some(w => w.date === d) };
+        });
+      }, [workouts]);
+      const adherence = Math.round((last14.filter(d => d.has).length / 14) * 100);
+
+      const startWorkout = (day) => {
+        const list = splitType === "PPL" ? PPL_EXERCISES[day] : BRO_EXERCISES[day];
+        // Pre-load only the "essentials" — user can add more from the picker.
+        const defaults = DEFAULT_WORKOUTS[splitType]?.[day] || [];
+        const picked = defaults
+          .map((name) => list.find((e) => e.name === name))
+          .filter(Boolean);
+        const newW = {
+          id: Date.now(),
+          date: today,
+          split: splitType,
+          day,
+          exercises: picked.map((ex) => ({
+            name: ex.name,
+            eq: ex.eq,
+            sets: [{ reps: 10, weight: 0 }],
+          })),
+          duration: 0,
+          startTime: Date.now(),
+        };
+        setEditingWorkout(newW);
+      };
+
+      if (editingWorkout) {
+        return <WorkoutLogger
+          workout={editingWorkout}
+          allWorkouts={workouts}
+          splitType={splitType}
+          onSave={(w) => {
+            const filtered = workouts.filter(x => x.id !== w.id);
+            setWorkouts([...filtered, w]);
+            setEditingWorkout(null);
+          }}
+          onCancel={() => setEditingWorkout(null)} />;
+      }
+
+      return (
+        <div className="px-5 pt-5 fade-in">
+          <h1 className="text-2xl font-bold text-zinc-100 mb-1">Workouts</h1>
+          <p className="text-zinc-500 text-sm mb-5">Pick a split, hit the gym, track progress.</p>
+
+          {/* Split selector */}
+          <div className="flex gap-2 mb-5 bg-zinc-900 p-1 rounded-2xl border border-zinc-800">
+            {[
+              { key: "PPL", label: "Push / Pull / Legs", desc: "3-day split" },
+              { key: "BRO", label: "Bro Split", desc: "5-day split" }
+            ].map(s => (
+              <button key={s.key} onClick={() => setSplitType(s.key)}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold transition ${
+                  splitType === s.key ? "bg-lime-400 text-zinc-900" : "text-zinc-400"
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Weekly plan */}
+          <WeeklyScheduleCard
+            profile={profile}
+            splitType={splitType}
+            workouts={workouts}
+            onStartDay={startWorkout}
+          />
+
+          {/* Today */}
+          {todayWorkout && (
+            <Card className="mb-4 border-lime-500/30 bg-lime-400/5">
+              <div className="flex items-center gap-2 mb-1">
+                <Check className="w-4 h-4 text-lime-400" />
+                <span className="text-lime-300 text-xs uppercase tracking-wider font-semibold">Logged today</span>
+              </div>
+              <div className="text-zinc-100 font-bold text-lg">{todayWorkout.day} day</div>
+              <div className="text-xs text-zinc-500 mt-1 mono">
+                {todayWorkout.exercises.length} exercises · {todayWorkout.duration} min
+              </div>
+              <button onClick={() => setEditingWorkout(todayWorkout)}
+                className="mt-3 text-xs text-lime-400 font-semibold flex items-center gap-1">
+                <Edit3 className="w-3 h-3" /> Edit workout
+              </button>
+            </Card>
+          )}
+
+          {/* Day selector — ad-hoc workout outside the plan */}
+          <h2 className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Or start any session</h2>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            {days.map(day => {
+              const exList = splitType === "PPL" ? PPL_EXERCISES[day] : BRO_EXERCISES[day];
+              return (
+                <button key={day} onClick={() => startWorkout(day)}
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-left hover:border-lime-400/50 active:scale-[0.98] transition">
+                  <div className="w-10 h-10 rounded-xl bg-lime-400/10 flex items-center justify-center mb-3">
+                    <Dumbbell className="w-4 h-4 text-lime-400" />
+                  </div>
+                  <div className="font-bold text-zinc-100">{day}</div>
+                  <div className="text-xs text-zinc-500 mt-0.5 mono">{exList.length}+ exercises</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 14-day consistency */}
+          <Card className="mb-4">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">14-day adherence</div>
+                <div className="text-2xl font-bold text-zinc-100 mono mt-1">{adherence}%</div>
+              </div>
+              <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                adherence >= 50 ? "bg-lime-400/15 text-lime-300" : "bg-orange-400/15 text-orange-300"
+              }`}>
+                {adherence >= 70 ? "Excellent" : adherence >= 50 ? "On track" : "Pick it up"}
+              </div>
+            </div>
+            <div className="flex gap-1">
+              {last14.map((d, i) => (
+                <div key={i} className="flex-1 aspect-square rounded-md transition"
+                  style={{ background: d.has ? ACCENT : "#27272a" }} title={d.date} />
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-zinc-600 mt-2 mono">
+              <span>14d ago</span><span>Today</span>
+            </div>
+          </Card>
+
+          {/* History */}
+          <h2 className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Recent</h2>
+          {workouts.slice(-5).reverse().map(w => (
+            <div key={w.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 mb-2 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-lime-400/10 flex items-center justify-center">
+                <Dumbbell className="w-4 h-4 text-lime-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-zinc-100 text-sm font-semibold">{w.day} · {w.split}</div>
+                <div className="text-xs text-zinc-500 mono">{fmtDate(w.date)} · {w.exercises.length} exercises · {w.duration}min</div>
+              </div>
+              <button onClick={() => setEditingWorkout(w)}>
+                <Edit3 className="w-4 h-4 text-zinc-600" />
+              </button>
+            </div>
+          ))}
+          {workouts.length === 0 && (
+            <div className="text-center text-zinc-600 text-sm py-8">No workouts yet — start your first session above.</div>
+          )}
+        </div>
+      );
+    }
+
+    // ============ WORKOUT LOGGER ============
+    function WorkoutLogger({ workout, allWorkouts = [], splitType = "PPL", onSave, onCancel }) {
+      const [w, setW] = useState(workout);
+      const [duration, setDuration] = useState(workout.duration || 45);
+      const [showPicker, setShowPicker] = useState(false);
+
+      // "Last performed" lookup — find the most recent prior workout that had this exercise.
+      const lastPerformedFor = (exerciseName) => {
+        for (let i = allWorkouts.length - 1; i >= 0; i--) {
+          const past = allWorkouts[i];
+          if (past.id === w.id) continue;
+          const ex = past.exercises?.find((e) => e.name === exerciseName);
+          if (ex && ex.sets?.length) {
+            const top = ex.sets.reduce((b, s) =>
+              (s.weight || 0) * (s.reps || 0) > (b.weight || 0) * (b.reps || 0) ? s : b, ex.sets[0]);
+            const daysAgo = Math.max(0, Math.floor((Date.now() - new Date(past.date).getTime()) / 86400000));
+            return { weight: top.weight, reps: top.reps, daysAgo };
+          }
+        }
+        return null;
+      };
+
+      const updateSet = (exIdx, setIdx, field, val) => {
+        const newEx = [...w.exercises];
+        newEx[exIdx].sets[setIdx] = { ...newEx[exIdx].sets[setIdx], [field]: +val };
+        setW({ ...w, exercises: newEx });
+      };
+
+      const bumpWeight = (exIdx, setIdx, delta) => {
+        const newEx = [...w.exercises];
+        const cur = +newEx[exIdx].sets[setIdx].weight || 0;
+        newEx[exIdx].sets[setIdx] = { ...newEx[exIdx].sets[setIdx], weight: Math.max(0, +(cur + delta).toFixed(2)) };
+        setW({ ...w, exercises: newEx });
+      };
+
+      const addSet = (exIdx) => {
+        const newEx = [...w.exercises];
+        const last = newEx[exIdx].sets[newEx[exIdx].sets.length - 1] || { reps: 10, weight: 0 };
+        newEx[exIdx].sets.push({ ...last });
+        setW({ ...w, exercises: newEx });
+      };
+
+      const removeSet = (exIdx, setIdx) => {
+        const newEx = [...w.exercises];
+        if (newEx[exIdx].sets.length > 1) {
+          newEx[exIdx].sets.splice(setIdx, 1);
+          setW({ ...w, exercises: newEx });
+        }
+      };
+
+      const removeExercise = (exIdx) => {
+        setW({ ...w, exercises: w.exercises.filter((_, i) => i !== exIdx) });
+      };
+
+      const addExercise = (ex) => {
+        const last = lastPerformedFor(ex.name);
+        setW({
+          ...w,
+          exercises: [
+            ...w.exercises,
+            { name: ex.name, eq: ex.eq, sets: [{ reps: last?.reps || 10, weight: last?.weight || 0 }] },
+          ],
+        });
+        setShowPicker(false);
+      };
+
+      const moveExercise = (exIdx, dir) => {
+        const newIdx = exIdx + dir;
+        if (newIdx < 0 || newIdx >= w.exercises.length) return;
+        const newEx = [...w.exercises];
+        [newEx[exIdx], newEx[newIdx]] = [newEx[newIdx], newEx[exIdx]];
+        setW({ ...w, exercises: newEx });
+      };
+
+      const totalVolume = w.exercises.reduce((s, ex) =>
+        s + ex.sets.reduce((sv, set) => sv + set.reps * set.weight, 0), 0);
+
+      // Available exercise pool depends on the split + day
+      const availablePool = useMemo(() => {
+        if (splitType === "PPL") return PPL_EXERCISES[w.day] || [];
+        return BRO_EXERCISES[w.day] || [];
+      }, [splitType, w.day]);
+
+      return (
+        <div className="px-5 pt-5 fade-in">
+          <div className="flex items-center justify-between mb-1">
+            <button onClick={onCancel} className="text-zinc-500 flex items-center gap-1 text-sm">
+              <ChevronLeft className="w-4 h-4" /> Back
+            </button>
+            <button onClick={() => onSave({ ...w, duration })}
+              className="px-4 py-2 rounded-xl font-bold text-zinc-900 text-sm flex items-center gap-1.5"
+              style={{ background: ACCENT }}>
+              <Check className="w-3.5 h-3.5" /> Save
+            </button>
+          </div>
+
+          <h1 className="text-2xl font-bold text-zinc-100 mt-2">{w.day} day</h1>
+          <p className="text-zinc-500 text-sm mb-4">{w.split} split · {fmtDate(w.date)}</p>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            <Card><div className="text-xs text-zinc-500 uppercase tracking-wider">Volume</div><div className="text-lg font-bold text-zinc-100 mono">{Math.round(totalVolume)} <span className="text-xs text-zinc-500">kg</span></div></Card>
+            <Card><div className="text-xs text-zinc-500 uppercase tracking-wider">Sets</div><div className="text-lg font-bold text-zinc-100 mono">{w.exercises.reduce((s, ex) => s + ex.sets.length, 0)}</div></Card>
+            <Card>
+              <div className="text-xs text-zinc-500 uppercase tracking-wider">Time</div>
+              <input type="number" value={duration} onChange={e => setDuration(+e.target.value)}
+                className="text-lg font-bold text-zinc-100 mono bg-transparent w-full outline-none" />
+            </Card>
+          </div>
+
+          {/* Exercises */}
+          {w.exercises.map((ex, exIdx) => {
+            const last = lastPerformedFor(ex.name);
+            const eqColor = EQ_COLOR[ex.eq] || "#a3e635";
+            return (
+              <div key={exIdx} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-3">
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    <div className="w-1 self-stretch rounded-full mt-0.5" style={{ background: eqColor }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-zinc-100 leading-tight">{ex.name}</div>
+                      <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-2">
+                        {ex.eq && <span>{EQ_LABEL[ex.eq]}</span>}
+                        {last ? (
+                          <>
+                            {ex.eq && <span className="text-zinc-700">·</span>}
+                            <span className="mono">Last: {last.weight}kg × {last.reps} ({last.daysAgo === 0 ? "today" : last.daysAgo + "d"})</span>
+                          </>
+                        ) : (
+                          <>
+                            {ex.eq && <span className="text-zinc-700">·</span>}
+                            <span className="text-zinc-600">First time</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-0.5 ml-2">
+                    <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0}
+                      className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 p-1">
+                      <ChevronLeft className="w-3 h-3 rotate-90" />
+                    </button>
+                    <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === w.exercises.length - 1}
+                      className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 p-1">
+                      <ChevronRight className="w-3 h-3 rotate-90" />
+                    </button>
+                    <button onClick={() => removeExercise(exIdx)} className="text-zinc-600 hover:text-red-400 p-1 ml-1">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5 px-1 mt-3">
+                  <div className="col-span-2">Set</div>
+                  <div className="col-span-3">Reps</div>
+                  <div className="col-span-6">Weight (kg)</div>
+                  <div className="col-span-1"></div>
+                </div>
+
+                {ex.sets.map((set, setIdx) => {
+                  const isPR = last && (set.weight * set.reps > last.weight * last.reps) && set.weight > 0;
+                  return (
+                    <div key={setIdx} className="grid grid-cols-12 gap-2 mb-1.5 items-center">
+                      <div className="col-span-2 text-zinc-400 text-sm font-bold mono px-1 flex items-center gap-1">
+                        #{setIdx + 1}
+                        {isPR && <Trophy className="w-3 h-3 text-amber-400" />}
+                      </div>
+                      <input type="number" inputMode="numeric" value={set.reps}
+                        onChange={e => updateSet(exIdx, setIdx, "reps", e.target.value)}
+                        className="col-span-3 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-zinc-100 mono text-sm focus:border-lime-500 outline-none text-center" />
+                      <div className="col-span-6 flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden">
+                        <button onClick={() => bumpWeight(exIdx, setIdx, -2.5)}
+                          className="px-2.5 py-2 text-zinc-400 hover:text-lime-400 active:bg-zinc-700 text-sm font-bold">−</button>
+                        <input type="number" inputMode="decimal" step="0.5" value={set.weight}
+                          onChange={e => updateSet(exIdx, setIdx, "weight", e.target.value)}
+                          className="flex-1 bg-transparent px-1 py-2 text-zinc-100 mono text-sm outline-none text-center min-w-0" />
+                        <button onClick={() => bumpWeight(exIdx, setIdx, 2.5)}
+                          className="px-2.5 py-2 text-zinc-400 hover:text-lime-400 active:bg-zinc-700 text-sm font-bold">+</button>
+                      </div>
+                      <button onClick={() => removeSet(exIdx, setIdx)}
+                        className="col-span-1 text-zinc-600 hover:text-red-400 flex justify-center">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button onClick={() => addSet(exIdx)}
+                  className="w-full mt-2 py-2 border border-dashed border-zinc-700 rounded-lg text-zinc-500 text-xs font-semibold hover:border-lime-500 hover:text-lime-400 flex items-center justify-center gap-1">
+                  <Plus className="w-3 h-3" /> Add set
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Add exercise CTA */}
+          <button onClick={() => setShowPicker(true)}
+            className="w-full py-3.5 mb-2 rounded-2xl border-2 border-dashed border-zinc-700 hover:border-lime-400 hover:bg-lime-400/5 text-zinc-400 hover:text-lime-400 font-semibold flex items-center justify-center gap-2 transition">
+            <Plus className="w-4 h-4" /> Add exercise
+            <span className="text-xs text-zinc-600 font-normal">· {availablePool.length - w.exercises.length} options</span>
+          </button>
+
+          {showPicker && (
+            <ExercisePickerModal
+              availableExercises={availablePool}
+              currentNames={w.exercises.map((e) => e.name)}
+              onPick={addExercise}
+              onClose={() => setShowPicker(false)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ============ NUTRITION SCREEN ============
+    function NutritionScreen({ profile, meals, setMeals, workouts }) {
+      const today = todayKey();
+      const [activeMeal, setActiveMeal] = useState(null); // "Breakfast", etc
+      const [searchQ, setSearchQ] = useState("");
+
+      // Adherence-aware target
+      const last14 = workouts.filter(w => {
+        const diff = (Date.now() - new Date(w.date).getTime()) / 86400000;
+        return diff <= 14;
+      });
+      const consistent = last14.length >= 7;
+      const tdee = calcTDEE(profile, consistent);
+      const totalLoss = profile.startWeight - profile.goalWeight;
+      const dailyDeficit = Math.round((totalLoss * KCAL_PER_KG_FAT) / profile.durationDays);
+      const calorieTarget = Math.max(1200, tdee - dailyDeficit);
+      const proteinTarget = Math.round(profile.weight * 1.8);
+
+      const mealTypes = ["Breakfast", "Lunch", "Dinner", "Snack"];
+      const todayMeals = meals.filter(m => m.date === today);
+
+      const totals = todayMeals.reduce((acc, m) => {
+        m.foods.forEach(f => {
+          acc.cal += f.cal * f.qty;
+          acc.p += f.p * f.qty;
+          acc.c += (f.c || 0) * f.qty;
+          acc.f += (f.f || 0) * f.qty;
+        });
+        return acc;
+      }, { cal: 0, p: 0, c: 0, f: 0 });
+
+      const addFood = (food) => {
+        const existing = todayMeals.find(m => m.meal === activeMeal);
+        let updated;
+        if (existing) {
+          updated = meals.map(m =>
+            m.id === existing.id ? { ...m, foods: [...m.foods, { ...food, qty: 1 }] } : m
+          );
+        } else {
+          updated = [...meals, { id: Date.now(), date: today, meal: activeMeal, foods: [{ ...food, qty: 1 }] }];
+        }
+        setMeals(updated);
+        setSearchQ("");
+      };
+
+      const updateQty = (mealId, foodIdx, delta) => {
+        const updated = meals.map(m => {
+          if (m.id !== mealId) return m;
+          const newFoods = [...m.foods];
+          const newQty = +(newFoods[foodIdx].qty + delta).toFixed(1);
+          if (newQty <= 0) newFoods.splice(foodIdx, 1);
+          else newFoods[foodIdx] = { ...newFoods[foodIdx], qty: newQty };
+          return { ...m, foods: newFoods };
+        }).filter(m => m.foods.length > 0);
+        setMeals(updated);
+      };
+
+      const filteredFoods = FOOD_DB.filter(f =>
+        f.name.toLowerCase().includes(searchQ.toLowerCase())
+      );
+
+      if (profile.noTracking) {
+        return (
+          <div className="px-5 pt-5 fade-in">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-1">Nutrition</h1>
+            <p className="text-zinc-500 text-sm mb-5">No-calorie mode is on.</p>
+
+            <Card className="text-center py-8">
+              <div className="w-14 h-14 rounded-2xl bg-lime-400/10 flex items-center justify-center mx-auto mb-3">
+                <Zap className="w-6 h-6 text-lime-400" />
+              </div>
+              <div className="font-bold text-zinc-100 mb-1">Tracking made simple</div>
+              <p className="text-sm text-zinc-500 mb-4 px-4">
+                We'll estimate your intake from your activity and goals. Just keep training.
+              </p>
+              <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">Daily target estimate</div>
+              <div className="text-3xl font-bold text-zinc-100 mono">{calorieTarget} <span className="text-base text-zinc-500">kcal</span></div>
+            </Card>
+          </div>
+        );
+      }
+
+      return (
+        <div className="px-5 pt-5 fade-in">
+          <h1 className="text-2xl font-bold text-zinc-100 mb-1">Nutrition</h1>
+          <p className="text-zinc-500 text-sm mb-5">Log meals, hit your macros.</p>
+
+          {/* Macro overview */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-4">
+            <div className="flex justify-between items-baseline mb-1">
+              <div>
+                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Today</div>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-4xl font-bold text-zinc-100 mono">{Math.round(totals.cal)}</span>
+                  <span className="text-zinc-500">/ {calorieTarget} kcal</span>
+                </div>
+              </div>
+            </div>
+            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden my-3">
+              <div className="h-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (totals.cal / calorieTarget) * 100)}%`, background: ACCENT }} />
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              <MacroDot label="Protein" val={totals.p} target={proteinTarget} color="#a3e635" unit="g" />
+              <MacroDot label="Carbs" val={totals.c} target={Math.round(calorieTarget * 0.45 / 4)} color="#38bdf8" unit="g" />
+              <MacroDot label="Fat" val={totals.f} target={Math.round(calorieTarget * 0.25 / 9)} color="#fb923c" unit="g" />
+            </div>
+          </div>
+
+          {/* Meals */}
+          {mealTypes.map(meal => {
+            const mealEntry = todayMeals.find(m => m.meal === meal);
+            const cal = mealEntry?.foods.reduce((s, f) => s + f.cal * f.qty, 0) || 0;
+            return (
+              <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-3">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="text-base font-bold text-zinc-100">{meal}</div>
+                    <div className="text-xs text-zinc-500 mono">{Math.round(cal)} kcal</div>
+                  </div>
+                  <button onClick={() => setActiveMeal(meal)}
+                    className="w-8 h-8 rounded-full bg-lime-400 flex items-center justify-center">
+                    <Plus className="w-4 h-4 text-zinc-900" />
+                  </button>
+                </div>
+                {mealEntry?.foods.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-t border-zinc-800/60">
+                    <div>
+                      <div className="text-sm text-zinc-200">{f.name}</div>
+                      <div className="text-xs text-zinc-500 mono">{Math.round(f.cal * f.qty)} kcal · {(f.p * f.qty).toFixed(1)}g P</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => updateQty(mealEntry.id, i, -0.5)}
+                        className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 text-sm">−</button>
+                      <span className="w-8 text-center text-sm text-zinc-200 mono">{f.qty}×</span>
+                      <button onClick={() => updateQty(mealEntry.id, i, 0.5)}
+                        className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 text-sm">+</button>
+                    </div>
+                  </div>
+                ))}
+                {!mealEntry && (
+                  <div className="text-center text-zinc-600 text-xs py-2">No items yet</div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add food modal */}
+          {activeMeal && (
+            <Modal onClose={() => { setActiveMeal(null); setSearchQ(""); }} title={`Add to ${activeMeal}`} fullHeight>
+              <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
+                placeholder="Search food (e.g. chapati, chicken)..."
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none mb-3" />
+              <div className="overflow-y-auto max-h-[55vh] scrollbar-hide">
+                {["Indian", "Global"].map(cat => {
+                  const items = filteredFoods.filter(f => f.cat === cat);
+                  if (!items.length) return null;
+                  return (
+                    <div key={cat} className="mb-3">
+                      <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 px-1">{cat}</div>
+                      {items.map((f, i) => (
+                        <button key={i} onClick={() => addFood(f)}
+                          className="w-full flex justify-between items-center p-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl mb-1.5 text-left">
+                          <div>
+                            <div className="text-sm text-zinc-100">{f.name}</div>
+                            <div className="text-xs text-zinc-500 mono">{f.p}g protein</div>
+                          </div>
+                          <div className="text-sm font-bold text-lime-400 mono">{f.cal} kcal</div>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
+    const MacroDot = ({ label, val, target, color, unit }) => {
+      const pct = Math.min(100, (val / target) * 100);
+      return (
+        <div>
+          <div className="flex justify-between items-baseline">
+            <span className="text-xs text-zinc-500 font-semibold">{label}</span>
+            <span className="text-xs text-zinc-400 mono">{Math.round(val)}<span className="text-zinc-600">/{target}{unit}</span></span>
+          </div>
+          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-1">
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+          </div>
+        </div>
+      );
+    };
+
+    // ============ PROGRESS SCREEN ============
+    function ProgressScreen({ profile, weights, workouts, meals }) {
+      const last14 = workouts.filter(w => (Date.now() - new Date(w.date).getTime()) / 86400000 <= 14);
+      const consistent = last14.length >= 7;
+      const tdee = calcTDEE(profile, consistent);
+      const totalLoss = profile.startWeight - profile.goalWeight;
+      const dailyDeficitTarget = Math.round((totalLoss * KCAL_PER_KG_FAT) / profile.durationDays);
+
+      // Build chart data: predicted vs actual
+      const chartData = useMemo(() => {
+        const days = profile.durationDays;
+        const data = [];
+        const startTime = new Date(profile.startDate).getTime();
+
+        for (let i = 0; i <= days; i += Math.max(1, Math.floor(days / 60))) {
+          const date = new Date(startTime + i * 86400000).toISOString().slice(0, 10);
+          const predicted = +(profile.startWeight - (totalLoss * i) / days).toFixed(2);
+
+          const actualEntry = weights.find(w => w.date === date);
+          const closestActual = actualEntry?.weight ?? null;
+
+          data.push({
+            date,
+            day: i,
+            predicted,
+            actual: closestActual,
+            label: i === 0 ? "Start" : i === days ? "Goal" : ""
+          });
+        }
+        return data;
+      }, [profile, weights, totalLoss]);
+
+      const currentWeight = weights.length ? weights[weights.length - 1].weight : profile.startWeight;
+      const lostSoFar = profile.startWeight - currentWeight;
+
+      // Daily calorie average over last 7 days
+      const last7Cal = useMemo(() => {
+        const data = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+          const dayMeals = meals.filter(m => m.date === d);
+          const cal = dayMeals.reduce((s, m) => s + m.foods.reduce((sf, f) => sf + f.cal * f.qty, 0), 0);
+          data.push({ date: fmtDate(d), cal: Math.round(cal) });
+        }
+        return data;
+      }, [meals]);
+
+      const avgCal = Math.round(last7Cal.reduce((s, d) => s + d.cal, 0) / 7);
+      const expectedDailyDeficit = consistent ? dailyDeficitTarget * 1.1 : dailyDeficitTarget * 0.9;
+      const expectedWeeklyLoss = (expectedDailyDeficit * 7) / KCAL_PER_KG_FAT;
+      const expectedMonthlyLoss = (expectedDailyDeficit * 30) / KCAL_PER_KG_FAT;
+
+      // End-of-week and end-of-month estimates
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const daysToEOW = 7 - dayOfWeek;
+      const daysToEOM = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
+      const eowWeight = +(currentWeight - (expectedDailyDeficit * daysToEOW) / KCAL_PER_KG_FAT).toFixed(1);
+      const eomWeight = +(currentWeight - (expectedDailyDeficit * daysToEOM) / KCAL_PER_KG_FAT).toFixed(1);
+
+      return (
+        <div className="px-5 pt-5 fade-in">
+          <h1 className="text-2xl font-bold text-zinc-100 mb-1">Progress</h1>
+          <p className="text-zinc-500 text-sm mb-5">Predicted vs actual.</p>
+
+          {/* Main chart */}
+          <Card className="mb-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Trajectory</div>
+                <div className="text-2xl font-bold text-zinc-100 mono">{currentWeight.toFixed(1)} <span className="text-base text-zinc-500">kg</span></div>
+              </div>
+              <div className="text-right">
+                <div className="text-zinc-500 text-xs">Lost so far</div>
+                <div className="text-lg font-bold mono" style={{ color: ACCENT }}>−{lostSoFar.toFixed(1)} kg</div>
+              </div>
+            </div>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="predGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ACCENT} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fff" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#fff" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 4" stroke="#27272a" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: "#52525b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#52525b", fontSize: 10 }} axisLine={false} tickLine={false} domain={['dataMin - 1', 'dataMax + 1']} width={28} />
+                  <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 12 }} labelStyle={{ color: "#a1a1aa" }} />
+                  <Area type="monotone" dataKey="predicted" stroke={ACCENT} strokeWidth={2} fill="url(#predGrad)" name="Predicted" />
+                  <Area type="monotone" dataKey="actual" stroke="#fff" strokeWidth={2.5} fill="url(#actGrad)" connectNulls={false} name="Actual" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex gap-4 text-xs mt-3 justify-center">
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{ background: ACCENT }} /><span className="text-zinc-400">Predicted</span></span>
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-white" /><span className="text-zinc-400">Actual</span></span>
+            </div>
+          </Card>
+
+          {/* Predictions */}
+          <h2 className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Forecasts</h2>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <PredictCard label="End of week" weight={eowWeight} delta={-(currentWeight - eowWeight).toFixed(1)} />
+            <PredictCard label="End of month" weight={eomWeight} delta={-(currentWeight - eomWeight).toFixed(1)} />
+            <PredictCard label="Weekly pace" weight={`−${expectedWeeklyLoss.toFixed(2)} kg`} sub="this week" />
+            <PredictCard label="Monthly pace" weight={`−${expectedMonthlyLoss.toFixed(1)} kg`} sub="this month" />
+          </div>
+
+          {/* Calories */}
+          <Card className="mb-4">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">7-day avg intake</div>
+                <div className="text-2xl font-bold text-zinc-100 mono">{avgCal} <span className="text-sm text-zinc-500">kcal</span></div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-zinc-500">TDEE</div>
+                <div className="text-lg font-bold text-zinc-300 mono">{tdee}</div>
+              </div>
+            </div>
+            <div className="h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={last7Cal} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="date" tick={{ fill: "#52525b", fontSize: 9 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, fontSize: 12 }} cursor={{ fill: "#27272a" }} />
+                  <ReferenceLine y={tdee} stroke="#fb923c" strokeDasharray="3 3" />
+                  <Bar dataKey="cal" fill={ACCENT} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Insight */}
+          <Card>
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: consistent ? "rgba(163,230,53,0.15)" : "rgba(251,146,60,0.15)" }}>
+                {consistent
+                  ? <Trophy className="w-4 h-4" style={{ color: ACCENT }} />
+                  : <Target className="w-4 h-4 text-orange-400" />}
+              </div>
+              <div>
+                <div className="text-zinc-100 font-semibold text-sm">
+                  {consistent ? "Workouts are boosting your fat loss." : "Inconsistent training — predictions adjusted down."}
+                </div>
+                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                  {consistent
+                    ? "Your TDEE is calculated using a moderate activity multiplier (1.55), which adds ~10% to expected weekly loss."
+                    : "Without regular sessions, we use a light activity multiplier (1.375). Hit 4+ workouts a week to unlock the boost."}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    const PredictCard = ({ label, weight, delta, sub }) => (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">{label}</div>
+        <div className="text-xl font-bold text-zinc-100 mono mt-1">{typeof weight === "number" ? `${weight} kg` : weight}</div>
+        {delta !== undefined && (
+          <div className="text-xs mono mt-0.5" style={{ color: ACCENT }}>{delta} kg</div>
+        )}
+        {sub && <div className="text-xs text-zinc-600 mt-0.5">{sub}</div>}
+      </div>
+    );
+
+    // ============ PROFILE SCREEN ============
+    function ProfileScreen({ profile, setProfile, measurements, setMeasurements, weights }) {
+      const [editing, setEditing] = useState(false);
+      const [showMeasure, setShowMeasure] = useState(false);
+      const [newM, setNewM] = useState({ chest: 100, waist: 85, arms: 35 });
+
+      const tdee = calcTDEE(profile);
+      const bmr = Math.round(calcBMR(profile));
+
+      const lastMeasurement = measurements[measurements.length - 1];
+
+      const saveMeasurement = () => {
+        setMeasurements([...measurements, { ...newM, date: todayKey() }]);
+        setShowMeasure(false);
+      };
+
+      return (
+        <div className="px-5 pt-5 fade-in">
+          <h1 className="text-2xl font-bold text-zinc-100 mb-5">Profile</h1>
+
+          {/* Avatar + name */}
+          <Card className="mb-4 text-center py-6">
+            <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-3xl font-bold text-zinc-900 mb-3"
+              style={{ background: ACCENT }}>
+              {profile.name?.[0]?.toUpperCase() || "U"}
+            </div>
+            <div className="font-bold text-zinc-100 text-lg">{profile.name}</div>
+            <div className="text-xs text-zinc-500 mt-0.5 mono">
+              {profile.age}y · {profile.height}cm · {profile.gender}
+            </div>
+          </Card>
+
+          {/* Body stats */}
+          <h2 className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Body</h2>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Card>
+              <div className="text-xs text-zinc-500">BMR</div>
+              <div className="text-xl font-bold text-zinc-100 mono">{bmr}</div>
+              <div className="text-xs text-zinc-600">resting kcal</div>
+            </Card>
+            <Card>
+              <div className="text-xs text-zinc-500">TDEE</div>
+              <div className="text-xl font-bold text-zinc-100 mono">{tdee}</div>
+              <div className="text-xs text-zinc-600">daily burn</div>
+            </Card>
+          </div>
+
+          {/* Measurements */}
+          <Card className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Ruler className="w-4 h-4 text-zinc-400" />
+                <span className="text-zinc-100 font-semibold">Body measurements</span>
+              </div>
+              <button onClick={() => setShowMeasure(true)}
+                className="text-xs text-lime-400 font-semibold flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Log
+              </button>
+            </div>
+            {lastMeasurement ? (
+              <div className="grid grid-cols-3 gap-3">
+                <MeasureBox label="Chest" val={lastMeasurement.chest} />
+                <MeasureBox label="Waist" val={lastMeasurement.waist} />
+                <MeasureBox label="Arms" val={lastMeasurement.arms} />
+              </div>
+            ) : (
+              <div className="text-center text-zinc-600 text-xs py-2">No measurements yet</div>
+            )}
+            {lastMeasurement && (
+              <div className="text-xs text-zinc-600 mt-3 mono text-center">Last: {fmtDate(lastMeasurement.date)}</div>
+            )}
+          </Card>
+
+          {/* Settings */}
+          <h2 className="text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-3">Settings</h2>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl divide-y divide-zinc-800 mb-4">
+            <SettingRow icon={Target} label="Goal weight" value={`${profile.goalWeight} kg`} />
+            <SettingRow icon={Calendar} label="Duration" value={`${profile.durationDays} days`} />
+            <SettingRow icon={Bell} label="Notifications" value="On" />
+            <SettingRow icon={Zap} label="No-tracking mode"
+              value={profile.noTracking ? "On" : "Off"}
+              onClick={() => setProfile({ ...profile, noTracking: !profile.noTracking })} />
+          </div>
+
+          {/* Reset */}
+          <button onClick={() => {
+            if (confirm("Reset all data? This cannot be undone.")) {
+              ["ftp:profile", "ftp:weights", "ftp:workouts", "ftp:meals", "ftp:water", "ftp:measurements", "ftp:streak"]
+                .forEach(k => window.storage.delete(k));
+              location.reload();
+            }
+          }}
+            className="w-full py-3 text-zinc-600 text-xs hover:text-red-400">
+            Reset all data
+          </button>
+
+          {/* Measurement modal */}
+          {showMeasure && (
+            <Modal onClose={() => setShowMeasure(false)} title="Log measurements">
+              <Field label="Chest (cm)">
+                <NumberStepper value={newM.chest} onChange={v => setNewM({ ...newM, chest: v })} min={50} max={200} step={0.5} decimals={1} suffix="cm" />
+              </Field>
+              <Field label="Waist (cm)">
+                <NumberStepper value={newM.waist} onChange={v => setNewM({ ...newM, waist: v })} min={40} max={200} step={0.5} decimals={1} suffix="cm" />
+              </Field>
+              <Field label="Arms (cm)">
+                <NumberStepper value={newM.arms} onChange={v => setNewM({ ...newM, arms: v })} min={20} max={70} step={0.5} decimals={1} suffix="cm" />
+              </Field>
+              <button onClick={saveMeasurement}
+                className="w-full mt-2 py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2"
+                style={{ background: ACCENT }}>
+                <Save className="w-4 h-4" /> Save
+              </button>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
+    const MeasureBox = ({ label, val }) => (
+      <div className="bg-zinc-800/50 rounded-xl p-3 text-center">
+        <div className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">{label}</div>
+        <div className="text-lg font-bold text-zinc-100 mono mt-0.5">{val} <span className="text-xs text-zinc-500">cm</span></div>
+      </div>
+    );
+
+    const SettingRow = ({ icon: Icon, label, value, onClick }) => (
+      <button onClick={onClick} className="w-full flex items-center gap-3 p-4 hover:bg-zinc-800/50 transition text-left">
+        <Icon className="w-4 h-4 text-zinc-500" />
+        <span className="flex-1 text-sm text-zinc-200">{label}</span>
+        <span className="text-sm text-zinc-500 mono">{value}</span>
+        <ChevronRight className="w-4 h-4 text-zinc-700" />
+      </button>
+    );
+
+    // ============ SHARED COMPONENTS ============
+    const Card = ({ children, className = "" }) => (
+      <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 ${className}`}>
+        {children}
+      </div>
+    );
+
+    function Modal({ onClose, title, children, fullHeight }) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+          onClick={onClose}>
+          <div className={`w-full sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl p-5 fade-in ${fullHeight ? "max-h-[85vh]" : ""}`}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-zinc-100">{title}</h3>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    function BottomNav({ tab, setTab }) {
+      const items = [
+        { key: "home", icon: Home, label: "Home" },
+        { key: "workout", icon: Dumbbell, label: "Train" },
+        { key: "nutrition", icon: Apple, label: "Food" },
+        { key: "progress", icon: TrendingUp, label: "Progress" },
+        { key: "profile", icon: User, label: "Profile" }
+      ];
+      return (
+        <div className="absolute bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 px-2 pt-2 pb-3">
+          <div className="flex justify-around">
+            {items.map(({ key, icon: Icon, label }) => (
+              <button key={key} onClick={() => setTab(key)}
+                className="flex flex-col items-center gap-1 px-3 py-1.5 transition">
+                <Icon className="w-5 h-5 transition" style={{ color: tab === key ? ACCENT : "#71717a" }} />
+                <span className="text-[10px] font-semibold tracking-wide" style={{ color: tab === key ? ACCENT : "#71717a" }}>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+
+    document.getElementById('loading').style.opacity = '0';
+    setTimeout(() => { const el = document.getElementById('loading'); if (el) el.remove(); }, 400);
+    createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
