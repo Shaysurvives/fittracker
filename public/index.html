@@ -60,7 +60,8 @@
       'ftp:water': '/api/water',
       'ftp:measurements': '/api/measurements',
       'ftp:streak': '/api/streak',
-      'ftp:customFoods': '/api/customFoods'
+      'ftp:customFoods': '/api/customFoods',
+      'ftp:mealPresets': '/api/mealPresets'
     };
 
     let saveQueue = Promise.resolve();
@@ -709,6 +710,148 @@
     const EQ_LABEL = { barbell: "Barbell", dumbbell: "Dumbbell", cable: "Cable", machine: "Machine", smith: "Smith", bodyweight: "Bodyweight" };
     const EQ_COLOR = { barbell: "#a3e635", dumbbell: "#38bdf8", cable: "#f59e0b", machine: "#a78bfa", smith: "#fb7185", bodyweight: "#94a3b8" };
 
+    // ============ PERSONALIZED PLAN GENERATOR ============
+    // Returns the prescribed exercises for a given day with sets × reps × rest, tuned to the user's
+    // goal pace (high/moderate/low fat-loss target). High pace = more volume + shorter rest (some
+    // metabolic-style work). Low pace = strength-focused, longer rest, lower reps.
+    function getDayPrescription(splitType, day, tier) {
+      // Volume profiles by tier
+      const profiles = {
+        high:     { compoundSets: 4, compoundReps: "8-10", isolationSets: 3, isolationReps: "12-15", restCompound: 90,  restIsolation: 60, finisher: true },
+        moderate: { compoundSets: 4, compoundReps: "6-8",  isolationSets: 3, isolationReps: "10-12", restCompound: 120, restIsolation: 75, finisher: false },
+        low:      { compoundSets: 4, compoundReps: "5-6",  isolationSets: 3, isolationReps: "8-10",  restCompound: 180, restIsolation: 90, finisher: false },
+      };
+      const p = profiles[tier] || profiles.moderate;
+
+      // Each entry: [exerciseName, "compound" | "isolation" | "core" | "finisher"]
+      const blueprints = {
+        PPL: {
+          Push: [
+            ["Barbell Bench Press", "compound"],
+            ["Incline Dumbbell Press", "compound"],
+            ["Overhead Press (dumbbell)", "compound"],
+            ["Lateral Raise (DB)", "isolation"],
+            ["Cable Fly (mid)", "isolation"],
+            ["Tricep Pushdown (rope)", "isolation"],
+            ["Skullcrushers (EZ)", "isolation"],
+          ],
+          Pull: [
+            ["Pull-ups", "compound"],
+            ["Barbell Row (overhand)", "compound"],
+            ["Lat Pulldown (wide)", "compound"],
+            ["Seated Cable Row", "isolation"],
+            ["Face Pull", "isolation"],
+            ["Barbell Curl", "isolation"],
+            ["Hammer Curl", "isolation"],
+          ],
+          Legs: [
+            ["Back Squat", "compound"],
+            ["Romanian Deadlift", "compound"],
+            ["Leg Press", "compound"],
+            ["Walking Lunges", "isolation"],
+            ["Leg Curl (lying)", "isolation"],
+            ["Calf Raise (standing)", "isolation"],
+            ["Plank", "core"],
+            ["Hanging Knee Raise", "core"],
+          ],
+        },
+        BRO: {
+          Chest: [
+            ["Barbell Bench Press", "compound"],
+            ["Incline Dumbbell Press", "compound"],
+            ["Decline Dumbbell Press", "compound"],
+            ["Cable Fly (mid)", "isolation"],
+            ["Pec Deck Machine", "isolation"],
+            ["Dips (chest-focused)", "compound"],
+          ],
+          Back: [
+            ["Conventional Deadlift", "compound"],
+            ["Pull-ups", "compound"],
+            ["Barbell Row (overhand)", "compound"],
+            ["Lat Pulldown (wide)", "compound"],
+            ["Seated Cable Row", "isolation"],
+            ["Face Pull", "isolation"],
+          ],
+          Shoulders: [
+            ["Overhead Press (barbell)", "compound"],
+            ["Seated DB Press", "compound"],
+            ["Lateral Raise (DB)", "isolation"],
+            ["Lateral Raise (cable)", "isolation"],
+            ["Rear Delt Fly (DB)", "isolation"],
+            ["Face Pull", "isolation"],
+          ],
+          Legs: [
+            ["Back Squat", "compound"],
+            ["Romanian Deadlift", "compound"],
+            ["Leg Press", "compound"],
+            ["Bulgarian Split Squat", "compound"],
+            ["Leg Curl (lying)", "isolation"],
+            ["Leg Extension", "isolation"],
+            ["Calf Raise (standing)", "isolation"],
+            ["Plank", "core"],
+          ],
+          Arms: [
+            ["Barbell Curl", "compound"],
+            ["Incline DB Curl", "isolation"],
+            ["Hammer Curl", "isolation"],
+            ["Close-grip Bench Press", "compound"],
+            ["Skullcrushers (EZ)", "isolation"],
+            ["Tricep Pushdown (rope)", "isolation"],
+            ["Cable Curl (rope)", "isolation"],
+          ],
+        },
+      };
+
+      const blueprint = blueprints[splitType]?.[day] || [];
+
+      // Trim list based on tier — beginners on a low-pace plan don't need 8 exercises
+      const maxExercises = tier === "high" ? 7 : tier === "moderate" ? 6 : 5;
+      const trimmed = blueprint.slice(0, maxExercises);
+
+      return trimmed.map(([name, type]) => {
+        const isCompound = type === "compound";
+        const isCore = type === "core";
+        const sets = isCompound ? p.compoundSets : isCore ? 3 : p.isolationSets;
+        const reps = isCompound ? p.compoundReps : isCore ? "30-60s" : p.isolationReps;
+        const rest = isCompound ? p.restCompound : isCore ? 45 : p.restIsolation;
+        return { name, type, sets, reps, rest };
+      });
+    }
+
+    // Suggest a starting weight based on the user's bodyweight + exercise type.
+    // Conservative — always rounds down so you can progress, not regress.
+    function suggestStartWeight(exerciseName, bodyweight) {
+      const name = exerciseName.toLowerCase();
+      // Compound barbell lifts — multiplier of bodyweight
+      if (name.includes("squat") && !name.includes("split") && !name.includes("goblet") && !name.includes("sissy")) return Math.round(bodyweight * 0.6);
+      if (name.includes("deadlift")) return Math.round(bodyweight * 0.7);
+      if (name.includes("bench press") && !name.includes("close")) return Math.round(bodyweight * 0.5);
+      if (name.includes("close-grip bench") || name.includes("incline barbell") || name.includes("decline barbell")) return Math.round(bodyweight * 0.4);
+      if (name.includes("overhead press") || name.includes("ohp")) return Math.round(bodyweight * 0.3);
+      if (name.includes("row") && (name.includes("barbell") || name.includes("pendlay") || name.includes("t-bar"))) return Math.round(bodyweight * 0.4);
+      if (name.includes("hip thrust")) return Math.round(bodyweight * 0.6);
+      // Dumbbell movements
+      if (name.includes("incline") && name.includes("dumbbell")) return 12;
+      if (name.includes("dumbbell press") || name.includes("db press")) return 14;
+      if (name.includes("lateral raise") || name.includes("front raise") || name.includes("rear delt")) return 6;
+      if (name.includes("hammer curl") || name.includes("db curl") || name.includes("dumbbell curl")) return 8;
+      if (name.includes("bulgarian") || name.includes("lunge") || name.includes("step-up")) return 10;
+      if (name.includes("romanian deadlift") && name.includes("db")) return 16;
+      // Machines / cables
+      if (name.includes("leg press")) return Math.round(bodyweight * 0.8);
+      if (name.includes("lat pulldown") || name.includes("seated cable row")) return Math.round(bodyweight * 0.4);
+      if (name.includes("leg curl") || name.includes("leg extension")) return Math.round(bodyweight * 0.3);
+      if (name.includes("tricep pushdown") || name.includes("cable curl") || name.includes("face pull")) return 12;
+      if (name.includes("cable fly") || name.includes("pec deck")) return 15;
+      if (name.includes("calf raise")) return Math.round(bodyweight * 0.4);
+      // Bodyweight — use bodyweight itself as the "weight" for volume calculations
+      if (name.includes("pull-up") || name.includes("chin-up") || name.includes("dip") || name.includes("push-up") || name.includes("plank") || name.includes("knee raise") || name.includes("leg raise")) {
+        return bodyweight;
+      }
+      // Default fallback
+      return 10;
+    }
+
     // ============ AVATAR BODY MORPHING ============
     // Returns SVG path string for a humanoid silhouette.
     // progress: 0 = starting body (heavier), 1 = goal body (leaner).
@@ -837,6 +980,7 @@
       const [measurements, setMeasurements] = useStore("ftp:measurements", []);
       const [streak, setStreak] = useStore("ftp:streak", { count: 0, last: null });
       const [customFoods, setCustomFoods] = useStore("ftp:customFoods", []);
+      const [mealPresets, setMealPresets] = useStore("ftp:mealPresets", []);
       const [tab, setTab] = useState("home");
 
       // Update streak when user logs activity today
@@ -868,6 +1012,7 @@
         water, setWater,
         measurements, setMeasurements,
         customFoods, setCustomFoods,
+        mealPresets, setMealPresets,
         streak,
         setTab
       };
@@ -1284,6 +1429,232 @@
       );
     }
 
+    // ============ WEIGHT HISTORY CARD ============
+    function WeightHistoryCard({ weights, setWeights }) {
+      const [expanded, setExpanded] = useState(false);
+      const [editingDate, setEditingDate] = useState(null);
+      const [editValue, setEditValue] = useState(0);
+
+      const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
+      const visible = expanded ? sorted : sorted.slice(0, 1);
+
+      const updateEntry = (date) => {
+        const filtered = weights.filter((w) => w.date !== date);
+        setWeights([...filtered, { date, weight: +editValue }].sort((a, b) => a.date.localeCompare(b.date)));
+        setEditingDate(null);
+      };
+
+      const deleteEntry = (date) => {
+        setWeights(weights.filter((w) => w.date !== date));
+      };
+
+      return (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
+          <button onClick={() => setExpanded(!expanded)}
+            className="w-full flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Weight history</span>
+              <span className="text-zinc-600 text-xs mono">({weights.length})</span>
+            </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${expanded ? "rotate-90" : ""}`} />
+          </button>
+
+          <div className="space-y-1">
+            {visible.map((entry, i) => {
+              const isEditing = editingDate === entry.date;
+              const prev = sorted[sorted.findIndex(s => s.date === entry.date) + 1];
+              const delta = prev ? entry.weight - prev.weight : 0;
+              return (
+                <div key={entry.date} className="flex items-center gap-2 py-2 border-t border-zinc-800/60 first:border-0">
+                  <div className="w-20 text-xs text-zinc-500 mono shrink-0">{fmtDate(entry.date)}</div>
+                  {isEditing ? (
+                    <>
+                      <input type="number" step="0.1" value={editValue} autoFocus
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 bg-zinc-800 border border-lime-500 rounded-lg px-2 py-1.5 text-zinc-100 mono text-sm text-center outline-none" />
+                      <button onClick={() => updateEntry(entry.date)}
+                        className="w-7 h-7 rounded-lg bg-lime-400 text-zinc-900 flex items-center justify-center">
+                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                      </button>
+                      <button onClick={() => setEditingDate(null)}
+                        className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-400 flex items-center justify-center">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 text-zinc-100 font-bold mono">{entry.weight.toFixed(1)} <span className="text-xs text-zinc-500 font-normal">kg</span></div>
+                      {prev && delta !== 0 && (
+                        <div className={`text-[11px] mono ${delta < 0 ? "text-lime-400" : "text-orange-400"}`}>
+                          {delta < 0 ? "" : "+"}{delta.toFixed(1)}
+                        </div>
+                      )}
+                      <button onClick={() => { setEditingDate(entry.date); setEditValue(entry.weight); }}
+                        className="text-zinc-600 hover:text-zinc-300 p-1">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      {weights.length > 1 && (
+                        <button onClick={() => deleteEntry(entry.date)}
+                          className="text-zinc-600 hover:text-red-400 p-1">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {!expanded && weights.length > 1 && (
+            <button onClick={() => setExpanded(true)}
+              className="w-full mt-2 text-xs text-zinc-500 hover:text-zinc-300 py-1">
+              Show all {weights.length} entries
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // ============ TODAY'S PLAN CARD ============
+    function TodaysPlanCard({ profile, workouts, setTab }) {
+      const splitType = profile.splitType || "PPL";
+      const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+      const weeklyTarget = totalLoss / (profile.durationDays / 7);
+      const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
+
+      // Use the same plans as the WeeklyScheduleCard
+      const plans = {
+        PPL: {
+          high:     ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"],
+          moderate: ["Push", "Pull", "Legs", "Rest", "Push", "Pull", "Cardio"],
+          low:      ["Push", "Cardio", "Pull", "Rest", "Legs", "Cardio", "Rest"],
+        },
+        BRO: {
+          high:     ["Chest", "Back", "Shoulders", "Legs", "Arms", "Cardio", "Rest"],
+          moderate: ["Chest", "Back", "Shoulders", "Rest", "Legs", "Arms", "Cardio"],
+          low:      ["Chest", "Back", "Cardio", "Legs", "Rest", "Arms", "Rest"],
+        },
+      };
+
+      // What day is today in the plan? (Mon=0..Sun=6)
+      const dayOfWeek = (new Date().getDay() + 6) % 7; // shift so Mon=0
+      const todayType = plans[splitType][tier][dayOfWeek];
+      const isLifting = todayType !== "Rest" && todayType !== "Cardio";
+      const today = todayKey();
+      const alreadyDone = workouts.find((w) => w.date === today && w.day === todayType);
+
+      // Get the prescription if it's a lifting day
+      const prescription = isLifting ? getDayPrescription(splitType, todayType, tier) : [];
+
+      const [expanded, setExpanded] = useState(false);
+
+      // Rest / cardio cards get a simpler look
+      if (todayType === "Rest") {
+        return (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center shrink-0">
+              <Heart className="w-4 h-4 text-zinc-500" />
+            </div>
+            <div>
+              <div className="text-zinc-100 font-bold text-sm">Today is a rest day</div>
+              <div className="text-xs text-zinc-500 mt-0.5">Walk, stretch, sleep well. Recovery is when you grow.</div>
+            </div>
+          </div>
+        );
+      }
+
+      if (todayType === "Cardio") {
+        return (
+          <div className="bg-zinc-900 border border-sky-500/20 rounded-2xl p-4 mb-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-400/10 flex items-center justify-center shrink-0">
+              <Activity className="w-4 h-4 text-sky-400" />
+            </div>
+            <div className="flex-1">
+              <div className="text-zinc-100 font-bold text-sm">Today: Cardio</div>
+              <div className="text-xs text-zinc-500 mt-0.5">25–40 min steady-state, zone 2 (could-hold-a-conversation pace)</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="bg-gradient-to-br from-lime-400/10 via-zinc-900 to-zinc-900 border border-lime-400/30 rounded-2xl p-4 mb-4 relative overflow-hidden">
+          <div className="absolute -right-12 -top-12 w-32 h-32 rounded-full opacity-20 blur-3xl" style={{ background: ACCENT }} />
+
+          <div className="relative z-10">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <div className="text-lime-400 text-[10px] uppercase tracking-wider font-bold">Today's Plan</div>
+                <div className="text-zinc-100 font-bold text-lg leading-tight mt-0.5">
+                  {todayType} day · {prescription.length} exercises
+                </div>
+                <div className="text-[11px] text-zinc-500 mt-0.5">
+                  {tier === "high" ? "Higher volume" : tier === "moderate" ? "Balanced volume" : "Strength focus"} · ~{Math.round(prescription.reduce((s, p) => s + p.sets, 0) * 2.5 + 5)} min
+                </div>
+              </div>
+              {alreadyDone ? (
+                <div className="px-2.5 py-1 rounded-full bg-lime-400 text-zinc-900 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Check className="w-3 h-3" strokeWidth={3} /> Done
+                </div>
+              ) : null}
+            </div>
+
+            {/* Quick exercise list (collapsed) */}
+            {!expanded && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {prescription.slice(0, 4).map((rx, i) => (
+                  <div key={i} className="bg-zinc-800/80 border border-zinc-700 rounded-lg px-2 py-1 text-[11px] text-zinc-300">
+                    {rx.name.length > 22 ? rx.name.slice(0, 20) + "…" : rx.name}
+                    <span className="text-zinc-500 mono ml-1">{rx.sets}×{rx.reps}</span>
+                  </div>
+                ))}
+                {prescription.length > 4 && (
+                  <button onClick={() => setExpanded(true)}
+                    className="bg-zinc-800/80 border border-zinc-700 rounded-lg px-2 py-1 text-[11px] text-lime-400 font-semibold">
+                    +{prescription.length - 4} more
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Expanded full list */}
+            {expanded && (
+              <div className="space-y-1.5 mb-3">
+                {prescription.map((rx, i) => (
+                  <div key={i} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-3 py-2">
+                    <div className="text-[12px] text-zinc-200 flex-1 min-w-0 truncate pr-2">{rx.name}</div>
+                    <div className="text-[11px] mono shrink-0 flex gap-2">
+                      <span className="text-lime-400 font-semibold">{rx.sets}×{rx.reps}</span>
+                      <span className="text-zinc-600">{rx.rest}s</span>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={() => setExpanded(false)}
+                  className="w-full text-[11px] text-zinc-500 hover:text-zinc-300 py-1">
+                  Show less ↑
+                </button>
+              </div>
+            )}
+
+            {!alreadyDone ? (
+              <button onClick={() => setTab("workout")}
+                className="w-full py-2.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 text-sm"
+                style={{ background: ACCENT }}>
+                <Zap className="w-4 h-4" /> Start workout
+              </button>
+            ) : (
+              <button onClick={() => setTab("workout")}
+                className="w-full py-2 rounded-xl font-semibold text-lime-400 bg-lime-400/10 text-sm">
+                View today's session
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // ============ DASHBOARD ============
     function Dashboard({ profile, weights, workouts, meals, water, streak, setTab, setWeights, setWater }) {
       const today = todayKey();
@@ -1333,11 +1704,13 @@
 
       const [showLogWeight, setShowLogWeight] = useState(false);
       const [newWt, setNewWt] = useState(currentWeight);
+      const [logDate, setLogDate] = useState(today);
 
       const logWeight = () => {
-        const filtered = weights.filter(w => w.date !== today);
-        setWeights([...filtered, { date: today, weight: +newWt }].sort((a, b) => a.date.localeCompare(b.date)));
+        const filtered = weights.filter(w => w.date !== logDate);
+        setWeights([...filtered, { date: logDate, weight: +newWt }].sort((a, b) => a.date.localeCompare(b.date)));
         setShowLogWeight(false);
+        setLogDate(today); // reset for next time
       };
 
       return (
@@ -1409,6 +1782,9 @@
             todayWater={todayWater}
             adherence={adherence / 100}
           />
+
+          {/* Today's prescribed workout plan */}
+          <TodaysPlanCard profile={profile} workouts={workouts} setTab={setTab} />
 
           {/* Streak + workout */}
           <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1508,6 +1884,11 @@
             </div>
           </Card>
 
+          {/* Weight history (last 7 entries, editable) */}
+          {weights.length > 0 && (
+            <WeightHistoryCard weights={weights} setWeights={setWeights} />
+          )}
+
           {/* Status banner */}
           <div className={`rounded-2xl p-4 mb-2 border ${
             consistent
@@ -1531,10 +1912,24 @@
 
           {/* Log weight modal */}
           {showLogWeight && (
-            <Modal onClose={() => setShowLogWeight(false)} title="Log today's weight">
-              <NumberStepper value={newWt} onChange={setNewWt} min={30} max={250} step={0.1} decimals={1} suffix="kg" />
+            <Modal onClose={() => setShowLogWeight(false)} title="Log weight">
+              <Field label="Date">
+                <input type="date" value={logDate}
+                  max={today}
+                  onChange={(e) => setLogDate(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 focus:border-lime-500 outline-none mono" />
+              </Field>
+              <Field label="Weight">
+                <NumberStepper value={newWt} onChange={setNewWt} min={30} max={250} step={0.1} decimals={1} suffix="kg" />
+              </Field>
+              {logDate !== today && (
+                <div className="text-[11px] text-amber-400 mb-2 flex items-center gap-1.5">
+                  <span>⚠</span>
+                  <span>Backfilling for {fmtDate(logDate)}</span>
+                </div>
+              )}
               <button onClick={logWeight}
-                className="w-full mt-4 py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2"
+                className="w-full mt-2 py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2"
                 style={{ background: ACCENT }}>
                 <Save className="w-4 h-4" /> Save weight
               </button>
@@ -1825,21 +2220,53 @@
 
       const startWorkout = (day) => {
         const list = splitType === "PPL" ? PPL_EXERCISES[day] : BRO_EXERCISES[day];
-        // Pre-load only the "essentials" — user can add more from the picker.
-        const defaults = DEFAULT_WORKOUTS[splitType]?.[day] || [];
-        const picked = defaults
-          .map((name) => list.find((e) => e.name === name))
+
+        // Get personalized prescription based on weekly fat-loss target
+        const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+        const weeklyTarget = totalLoss / (profile.durationDays / 7);
+        const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
+        const prescription = getDayPrescription(splitType, day, tier);
+
+        // Map prescription to actual exercise objects + initial set rows
+        const picked = prescription
+          .map((rx) => {
+            const ex = list.find((e) => e.name === rx.name);
+            if (!ex) return null;
+            // Parse "8-10" → use the lower number as the initial rep target
+            const repTarget = parseInt(String(rx.reps).split("-")[0]) || 10;
+            // Look up last performed weight; otherwise suggest based on bodyweight
+            const lastSets = (() => {
+              for (let i = workouts.length - 1; i >= 0; i--) {
+                const past = workouts[i];
+                const found = past.exercises?.find((e) => e.name === ex.name);
+                if (found?.sets?.length) {
+                  const top = found.sets.reduce((b, s) =>
+                    (s.weight || 0) * (s.reps || 0) > (b.weight || 0) * (b.reps || 0) ? s : b, found.sets[0]);
+                  return { weight: top.weight, reps: top.reps };
+                }
+              }
+              return null;
+            })();
+            const startWeight = lastSets?.weight ?? suggestStartWeight(ex.name, profile.weight);
+            const startReps = lastSets?.reps ?? repTarget;
+            // Build N empty sets as prescribed
+            const sets = Array.from({ length: rx.sets }, () => ({ reps: startReps, weight: startWeight }));
+            return {
+              name: ex.name,
+              eq: ex.eq,
+              targetReps: rx.reps,
+              rest: rx.rest,
+              sets,
+            };
+          })
           .filter(Boolean);
+
         const newW = {
           id: Date.now(),
           date: today,
           split: splitType,
           day,
-          exercises: picked.map((ex) => ({
-            name: ex.name,
-            eq: ex.eq,
-            sets: [{ reps: 10, weight: 0 }],
-          })),
+          exercises: picked,
           duration: 0,
           startTime: Date.now(),
         };
@@ -1975,6 +2402,34 @@
       const [w, setW] = useState(workout);
       const [duration, setDuration] = useState(workout.duration || 45);
       const [showPicker, setShowPicker] = useState(false);
+      const [restTimer, setRestTimer] = useState(null); // { secondsLeft, total, exIdx, setIdx }
+
+      // Rest timer countdown
+      useEffect(() => {
+        if (!restTimer || restTimer.secondsLeft <= 0) return;
+        const id = setInterval(() => {
+          setRestTimer((rt) => {
+            if (!rt) return null;
+            if (rt.secondsLeft <= 1) {
+              // Beep when timer ends — try Web Audio API; fall back silently if unavailable.
+              try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.frequency.value = 880;
+                g.gain.setValueAtTime(0.2, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                o.start(); o.stop(ctx.currentTime + 0.4);
+              } catch (e) { /* silent */ }
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+              return null;
+            }
+            return { ...rt, secondsLeft: rt.secondsLeft - 1 };
+          });
+        }, 1000);
+        return () => clearInterval(id);
+      }, [restTimer]);
 
       // "Last performed" lookup — find the most recent prior workout that had this exercise.
       const lastPerformedFor = (exerciseName) => {
@@ -2091,14 +2546,22 @@
                     <div className="w-1 self-stretch rounded-full mt-0.5" style={{ background: eqColor }} />
                     <div className="min-w-0 flex-1">
                       <div className="font-bold text-zinc-100 leading-tight">{ex.name}</div>
-                      <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-2">
+                      <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-2 flex-wrap">
                         {ex.eq && <span>{EQ_LABEL[ex.eq]}</span>}
-                        {last ? (
+                        {ex.targetReps && (
+                          <>
+                            {ex.eq && <span className="text-zinc-700">·</span>}
+                            <span className="text-lime-400 font-semibold">Target: {ex.sets.length}×{ex.targetReps}</span>
+                            {ex.rest && <span className="text-zinc-600">· {ex.rest}s rest</span>}
+                          </>
+                        )}
+                        {!ex.targetReps && last && (
                           <>
                             {ex.eq && <span className="text-zinc-700">·</span>}
                             <span className="mono">Last: {last.weight}kg × {last.reps} ({last.daysAgo === 0 ? "today" : last.daysAgo + "d"})</span>
                           </>
-                        ) : (
+                        )}
+                        {!ex.targetReps && !last && (
                           <>
                             {ex.eq && <span className="text-zinc-700">·</span>}
                             <span className="text-zinc-600">First time</span>
@@ -2125,12 +2588,13 @@
                 <div className="grid grid-cols-12 gap-2 text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5 px-1 mt-3">
                   <div className="col-span-2">Set</div>
                   <div className="col-span-3">Reps</div>
-                  <div className="col-span-6">Weight (kg)</div>
-                  <div className="col-span-1"></div>
+                  <div className="col-span-5">Weight (kg)</div>
+                  <div className="col-span-2 text-center">Done</div>
                 </div>
 
                 {ex.sets.map((set, setIdx) => {
                   const isPR = last && (set.weight * set.reps > last.weight * last.reps) && set.weight > 0;
+                  const isDone = !!set.done;
                   return (
                     <div key={setIdx} className="grid grid-cols-12 gap-2 mb-1.5 items-center">
                       <div className="col-span-2 text-zinc-400 text-sm font-bold mono px-1 flex items-center gap-1">
@@ -2139,20 +2603,41 @@
                       </div>
                       <input type="number" inputMode="numeric" value={set.reps}
                         onChange={e => updateSet(exIdx, setIdx, "reps", e.target.value)}
-                        className="col-span-3 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-2 text-zinc-100 mono text-sm focus:border-lime-500 outline-none text-center" />
-                      <div className="col-span-6 flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-lg overflow-hidden">
+                        className={`col-span-3 bg-zinc-800 border rounded-lg px-2 py-2 mono text-sm focus:border-lime-500 outline-none text-center ${
+                          isDone ? "border-lime-500/50 text-lime-300" : "border-zinc-700 text-zinc-100"
+                        }`} />
+                      <div className={`col-span-5 flex items-center gap-1 bg-zinc-800 border rounded-lg overflow-hidden ${
+                        isDone ? "border-lime-500/50" : "border-zinc-700"
+                      }`}>
                         <button onClick={() => bumpWeight(exIdx, setIdx, -2.5)}
-                          className="px-2.5 py-2 text-zinc-400 hover:text-lime-400 active:bg-zinc-700 text-sm font-bold">−</button>
+                          className="px-2 py-2 text-zinc-400 hover:text-lime-400 active:bg-zinc-700 text-sm font-bold">−</button>
                         <input type="number" inputMode="decimal" step="0.5" value={set.weight}
                           onChange={e => updateSet(exIdx, setIdx, "weight", e.target.value)}
-                          className="flex-1 bg-transparent px-1 py-2 text-zinc-100 mono text-sm outline-none text-center min-w-0" />
+                          className={`flex-1 bg-transparent px-1 py-2 mono text-sm outline-none text-center min-w-0 ${
+                            isDone ? "text-lime-300" : "text-zinc-100"
+                          }`} />
                         <button onClick={() => bumpWeight(exIdx, setIdx, 2.5)}
-                          className="px-2.5 py-2 text-zinc-400 hover:text-lime-400 active:bg-zinc-700 text-sm font-bold">+</button>
+                          className="px-2 py-2 text-zinc-400 hover:text-lime-400 active:bg-zinc-700 text-sm font-bold">+</button>
                       </div>
-                      <button onClick={() => removeSet(exIdx, setIdx)}
-                        className="col-span-1 text-zinc-600 hover:text-red-400 flex justify-center">
-                        <X className="w-3 h-3" />
-                      </button>
+                      <div className="col-span-2 flex items-center justify-center gap-1">
+                        <button onClick={() => {
+                          const wasDone = !!ex.sets[setIdx].done;
+                          updateSet(exIdx, setIdx, "done", !wasDone);
+                          // If marking done (not undo), kick off rest timer
+                          if (!wasDone && ex.rest) {
+                            setRestTimer({ secondsLeft: ex.rest, total: ex.rest, exIdx, setIdx });
+                          }
+                        }}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition active:scale-90 ${
+                            isDone ? "bg-lime-400 text-zinc-900" : "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                          }`}>
+                          <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                        </button>
+                        <button onClick={() => removeSet(exIdx, setIdx)}
+                          className="text-zinc-700 hover:text-red-400">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -2180,18 +2665,53 @@
               onClose={() => setShowPicker(false)}
             />
           )}
+
+          {/* Rest timer overlay */}
+          {restTimer && (
+            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+              <div className="bg-zinc-900 border-2 border-lime-400 rounded-2xl px-5 py-3 shadow-2xl flex items-center gap-3 min-w-[260px]"
+                style={{ boxShadow: "0 0 30px rgba(163,230,53,0.3)" }}>
+                <div className="relative w-10 h-10">
+                  <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="#27272a" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="#a3e635" strokeWidth="3"
+                      strokeDasharray={`${(restTimer.secondsLeft / restTimer.total) * 94.25} 94.25`}
+                      strokeLinecap="round" />
+                  </svg>
+                  <Clock className="absolute inset-0 m-auto w-3.5 h-3.5 text-lime-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Rest</div>
+                  <div className="text-2xl font-bold text-zinc-100 mono leading-tight">{restTimer.secondsLeft}s</div>
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => setRestTimer({ ...restTimer, secondsLeft: restTimer.secondsLeft + 15, total: restTimer.total + 15 })}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-lg px-2 py-1.5">
+                    +15
+                  </button>
+                  <button onClick={() => setRestTimer(null)}
+                    className="bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg px-2 py-1.5">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
     // ============ NUTRITION SCREEN ============
-    function NutritionScreen({ profile, meals, setMeals, workouts, customFoods = [], setCustomFoods }) {
+    function NutritionScreen({ profile, meals, setMeals, workouts, customFoods = [], setCustomFoods, mealPresets = [], setMealPresets }) {
       const today = todayKey();
       const [activeMeal, setActiveMeal] = useState(null); // "Breakfast", etc
       const [searchQ, setSearchQ] = useState("");
       const [activeCat, setActiveCat] = useState("All");
       const [showCustomForm, setShowCustomForm] = useState(false);
       const [customFood, setCustomFood] = useState({ name: "", cal: "", p: "", c: "", f: "" });
+      const [presetMenuFor, setPresetMenuFor] = useState(null); // meal name for preset picker
+      const [savingPreset, setSavingPreset] = useState(null); // { meal, foods } when prompting for name
+      const [presetName, setPresetName] = useState("");
 
       // Adherence-aware target
       const last14 = workouts.filter(w => {
@@ -2341,6 +2861,7 @@
           {mealTypes.map(meal => {
             const mealEntry = todayMeals.find(m => m.meal === meal);
             const cal = mealEntry?.foods.reduce((s, f) => s + f.cal * f.qty, 0) || 0;
+            const hasItems = mealEntry?.foods.length > 0;
             return (
               <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-3">
                 <div className="flex justify-between items-center mb-2">
@@ -2348,10 +2869,24 @@
                     <div className="text-base font-bold text-zinc-100">{meal}</div>
                     <div className="text-xs text-zinc-500 mono">{Math.round(cal)} kcal</div>
                   </div>
-                  <button onClick={() => setActiveMeal(meal)}
-                    className="w-8 h-8 rounded-full bg-lime-400 flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-zinc-900" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {mealPresets.length > 0 && !hasItems && (
+                      <button onClick={() => setPresetMenuFor(meal)}
+                        className="text-[11px] text-zinc-400 hover:text-lime-400 font-semibold px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700">
+                        ⭐ Preset
+                      </button>
+                    )}
+                    {hasItems && (
+                      <button onClick={() => { setSavingPreset({ meal, foods: mealEntry.foods }); setPresetName(meal + " preset"); }}
+                        className="text-[11px] text-zinc-400 hover:text-lime-400 font-semibold px-2 py-1 rounded-md bg-zinc-800 border border-zinc-700">
+                        💾 Save
+                      </button>
+                    )}
+                    <button onClick={() => setActiveMeal(meal)}
+                      className="w-8 h-8 rounded-full bg-lime-400 flex items-center justify-center">
+                      <Plus className="w-4 h-4 text-zinc-900" />
+                    </button>
+                  </div>
                 </div>
                 {mealEntry?.foods.map((f, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-t border-zinc-800/60">
@@ -2374,6 +2909,81 @@
               </div>
             );
           })}
+
+          {/* Save preset modal */}
+          {savingPreset && (
+            <Modal onClose={() => setSavingPreset(null)} title="Save as preset">
+              <p className="text-sm text-zinc-400 mb-4">
+                Save this {savingPreset.meal.toLowerCase()} ({savingPreset.foods.length} items) so you can re-log it instantly.
+              </p>
+              <Field label="Preset name">
+                <input
+                  autoFocus
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  placeholder="e.g. My usual breakfast"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none"
+                />
+              </Field>
+              <button
+                onClick={() => {
+                  if (!presetName.trim()) return;
+                  setMealPresets([
+                    { id: Date.now(), name: presetName.trim(), meal: savingPreset.meal, foods: savingPreset.foods },
+                    ...mealPresets,
+                  ]);
+                  setSavingPreset(null);
+                }}
+                disabled={!presetName.trim()}
+                className="w-full py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{ background: ACCENT }}>
+                <Save className="w-4 h-4" /> Save preset
+              </button>
+            </Modal>
+          )}
+
+          {/* Apply preset modal */}
+          {presetMenuFor && (
+            <Modal onClose={() => setPresetMenuFor(null)} title={`Add preset to ${presetMenuFor}`}>
+              {mealPresets.length === 0 ? (
+                <div className="text-center text-zinc-500 py-8 text-sm">No presets yet. Log a meal and tap "Save" to create one.</div>
+              ) : (
+                <div className="max-h-[60vh] overflow-y-auto scrollbar-hide">
+                  {mealPresets.map((p) => {
+                    const presetCal = p.foods.reduce((s, f) => s + f.cal * f.qty, 0);
+                    return (
+                      <div key={p.id}
+                        className="bg-zinc-800 hover:bg-zinc-700 rounded-xl mb-1.5 overflow-hidden">
+                        <button onClick={() => {
+                          // Apply: replace current meal with preset foods
+                          const filtered = meals.filter((m) => !(m.date === today && m.meal === presetMenuFor));
+                          const updated = [...filtered, {
+                            id: Date.now(),
+                            date: today,
+                            meal: presetMenuFor,
+                            foods: p.foods.map((f) => ({ ...f })),
+                          }];
+                          setMeals(updated);
+                          setPresetMenuFor(null);
+                        }}
+                          className="w-full p-3 text-left flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm text-zinc-100 font-semibold truncate">{p.name}</div>
+                            <div className="text-[10px] text-zinc-500 mono">{p.foods.length} items · {Math.round(presetCal)} kcal · was {p.meal}</div>
+                          </div>
+                          <Plus className="w-4 h-4 text-lime-400 ml-2 shrink-0" />
+                        </button>
+                        <button onClick={() => setMealPresets(mealPresets.filter((mp) => mp.id !== p.id))}
+                          className="w-full text-[10px] text-zinc-600 hover:text-red-400 py-1.5 border-t border-zinc-700">
+                          Delete preset
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Modal>
+          )}
 
           {/* Add food modal */}
           {activeMeal && (
