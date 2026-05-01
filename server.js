@@ -267,6 +267,20 @@ app.put("/api/customFoods", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ── Meal Presets (stored as JSON in kv table) ────────────────
+app.get("/api/mealPresets", wrap(async (_req, res) => {
+  const r = await pool.query("SELECT value FROM kv WHERE key = 'mealPresets'");
+  res.json(r.rows.length ? JSON.parse(r.rows[0].value) : []);
+}));
+
+app.put("/api/mealPresets", wrap(async (req, res) => {
+  await pool.query(`
+    INSERT INTO kv (key, value) VALUES ('mealPresets', $1)
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  `, [JSON.stringify(req.body)]);
+  res.json({ ok: true });
+}));
+
 // ── Reset everything ─────────────────────────────────────────
 app.delete("/api/all", wrap(async (_req, res) => {
   await tx(async (c) => {
