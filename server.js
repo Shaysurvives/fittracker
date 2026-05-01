@@ -253,6 +253,20 @@ app.put("/api/streak", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ── Custom Foods (stored as JSON in kv table) ────────────────
+app.get("/api/customFoods", wrap(async (_req, res) => {
+  const r = await pool.query("SELECT value FROM kv WHERE key = 'customFoods'");
+  res.json(r.rows.length ? JSON.parse(r.rows[0].value) : []);
+}));
+
+app.put("/api/customFoods", wrap(async (req, res) => {
+  await pool.query(`
+    INSERT INTO kv (key, value) VALUES ('customFoods', $1)
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  `, [JSON.stringify(req.body)]);
+  res.json({ ok: true });
+}));
+
 // ── Reset everything ─────────────────────────────────────────
 app.delete("/api/all", wrap(async (_req, res) => {
   await tx(async (c) => {
