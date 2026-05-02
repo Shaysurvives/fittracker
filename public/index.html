@@ -941,6 +941,36 @@
       return "optimal";
     }
 
+    // ============ METABOLIC FINISHERS ============
+    // Optional 10-15 min add-on at the end of a workout for extra calorie burn.
+    // These are deliberately HIGH-CARDIO, LOW-LOAD movements — they burn calories
+    // without compromising recovery from heavy lifting (which would be counterproductive in a deficit).
+    // kcal estimates assume 70-80kg bodyweight at moderate effort.
+    const FINISHERS = [
+      { id: "kb_swing",     name: "Kettlebell Swings",      duration: "3 rounds × 30s on / 30s off", kcal: 90,  pattern: "hip_dominant",  diff: 2, equipment: "kettlebell" },
+      { id: "burpees",      name: "Burpees",                duration: "3 rounds × 30s on / 30s off", kcal: 110, pattern: "full_body",     diff: 3, equipment: "bodyweight" },
+      { id: "rower",        name: "Row Machine Sprint",     duration: "5 × 250m all-out, 60s rest",  kcal: 130, pattern: "full_body",     diff: 2, equipment: "rower" },
+      { id: "bike_sprint",  name: "Bike Sprint Intervals",  duration: "8 × 20s on / 40s off",         kcal: 100, pattern: "lower",         diff: 2, equipment: "bike" },
+      { id: "jumprope",     name: "Jump Rope",              duration: "5 × 60s on / 30s off",         kcal: 80,  pattern: "calves",        diff: 1, equipment: "rope" },
+      { id: "sled_push",    name: "Sled Push",              duration: "6 × 20m, walk back rest",      kcal: 130, pattern: "lower",         diff: 3, equipment: "sled" },
+      { id: "battle_ropes", name: "Battle Ropes",           duration: "4 × 30s on / 30s off",         kcal: 80,  pattern: "upper",         diff: 2, equipment: "ropes" },
+      { id: "farmers_walk", name: "Farmer's Walk",          duration: "4 × 30m carry, 60s rest",      kcal: 70,  pattern: "full_body",     diff: 2, equipment: "dumbbells" },
+      { id: "stair_climb",  name: "Stair Climber",          duration: "10 min steady, fast pace",     kcal: 100, pattern: "lower",         diff: 1, equipment: "stairs" },
+      { id: "jump_squats",  name: "Jump Squats",            duration: "4 × 30s on / 30s off",         kcal: 85,  pattern: "lower",         diff: 2, equipment: "bodyweight" },
+    ];
+
+    // Estimate calories burned during a strength workout.
+    // Based on research (Vella et al, Phillips et al): ~5 kcal/min at moderate intensity for ~70kg lifter.
+    // Adjusted for bodyweight (heavier = burns more) and total volume (more sets = more EPOC).
+    function estimateWorkoutBurn({ durationMin, totalSets, bodyweight = 75, finisherKcal = 0 }) {
+      const baseRate = 5; // kcal/min for ~70kg
+      const bwAdjust = bodyweight / 70;
+      const baseBurn = durationMin * baseRate * bwAdjust;
+      // Volume bonus — more sets = more EPOC (afterburn effect, ~5-10 kcal per intense set)
+      const volumeBonus = totalSets * 6;
+      return Math.round(baseBurn + volumeBonus + finisherKcal);
+    }
+
     // Suggest a starting weight based on the user's bodyweight + exercise type.
     // Conservative — always rounds down so you can progress, not regress.
     function suggestStartWeight(exerciseName, bodyweight) {
@@ -2787,6 +2817,7 @@
           workout={editingWorkout}
           allWorkouts={workouts}
           splitType={splitType}
+          profile={profile}
           onSave={(w) => {
             const filtered = workouts.filter(x => x.id !== w.id);
             setWorkouts([...filtered, w]);
@@ -2910,11 +2941,14 @@
     }
 
     // ============ WORKOUT LOGGER ============
-    function WorkoutLogger({ workout, allWorkouts = [], splitType = "PPL", onSave, onCancel }) {
+    function WorkoutLogger({ workout, allWorkouts = [], splitType = "PPL", profile, onSave, onCancel }) {
       const [w, setW] = useState(workout);
       const [duration, setDuration] = useState(workout.duration || 45);
       const [showPicker, setShowPicker] = useState(false);
       const [restTimer, setRestTimer] = useState(null); // { secondsLeft, total, exIdx, setIdx }
+      const [finisher, setFinisher] = useState(workout.finisher || null); // selected finisher object
+      const [showFinisherPicker, setShowFinisherPicker] = useState(false);
+      const [completionScreen, setCompletionScreen] = useState(null); // shown after Save
 
       // Rest timer countdown
       useEffect(() => {
@@ -3026,10 +3060,23 @@
             <button onClick={onCancel} className="text-zinc-500 flex items-center gap-1 text-sm">
               <ChevronLeft className="w-4 h-4" /> Back
             </button>
-            <button onClick={() => onSave({ ...w, duration })}
+            <button onClick={() => {
+              // Compute burn and show completion screen first; the save happens when user dismisses.
+              const totalSets = w.exercises.reduce((s, ex) => s + ex.sets.length, 0);
+              const completedSets = w.exercises.reduce((s, ex) => s + ex.sets.filter(set => set.done).length, 0);
+              const totalVol = w.exercises.reduce((s, ex) => s + ex.sets.reduce((sv, set) => sv + (set.reps || 0) * (set.weight || 0), 0), 0);
+              const finisherKcal = finisher?.kcal || 0;
+              const burn = estimateWorkoutBurn({
+                durationMin: duration,
+                totalSets,
+                bodyweight: profile?.weight || 75,
+                finisherKcal,
+              });
+              setCompletionScreen({ burn, totalSets, completedSets, totalVol, finisher });
+            }}
               className="px-4 py-2 rounded-xl font-bold text-zinc-900 text-sm flex items-center gap-1.5"
               style={{ background: ACCENT }}>
-              <Check className="w-3.5 h-3.5" /> Save
+              <Check className="w-3.5 h-3.5" /> Finish
             </button>
           </div>
 
@@ -3169,6 +3216,42 @@
             <span className="text-xs text-zinc-600 font-normal">· {availablePool.length - w.exercises.length} options</span>
           </button>
 
+          {/* Optional metabolic finisher */}
+          <div className="mt-3 mb-4">
+            {finisher ? (
+              <div className="bg-gradient-to-br from-orange-500/20 via-zinc-900 to-zinc-900 border border-orange-500/30 rounded-2xl p-4 relative overflow-hidden">
+                <div className="absolute -right-12 -top-12 w-32 h-32 rounded-full opacity-20 blur-3xl bg-orange-500" />
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center shrink-0">
+                    <Flame className="w-5 h-5 text-orange-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-orange-400 uppercase tracking-wider font-bold">Finisher</span>
+                      <span className="text-[10px] text-zinc-500">+{finisher.kcal} kcal</span>
+                    </div>
+                    <div className="text-sm font-bold text-zinc-100 mt-0.5">{finisher.name}</div>
+                    <div className="text-[11px] text-zinc-500 mt-0.5">{finisher.duration}</div>
+                  </div>
+                  <button onClick={() => setShowFinisherPicker(true)}
+                    className="text-[11px] text-zinc-400 hover:text-orange-400 px-2 py-1 rounded-md bg-zinc-800/60 border border-zinc-700 shrink-0">
+                    Swap
+                  </button>
+                  <button onClick={() => setFinisher(null)}
+                    className="text-zinc-600 hover:text-red-400 shrink-0 p-1">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowFinisherPicker(true)}
+                className="w-full py-3 rounded-2xl border-2 border-dashed border-orange-500/30 hover:border-orange-500/60 hover:bg-orange-500/5 text-zinc-500 hover:text-orange-400 font-semibold flex items-center justify-center gap-2 transition group">
+                <Flame className="w-4 h-4 group-hover:scale-110 transition" />
+                Add metabolic finisher <span className="text-xs text-zinc-600 font-normal">· optional, +70-130 kcal</span>
+              </button>
+            )}
+          </div>
+
           {showPicker && (
             <ExercisePickerModal
               availableExercises={availablePool}
@@ -3176,6 +3259,45 @@
               onPick={addExercise}
               onClose={() => setShowPicker(false)}
             />
+          )}
+
+          {/* Finisher picker modal */}
+          {showFinisherPicker && (
+            <Modal onClose={() => setShowFinisherPicker(false)} title="Pick a finisher" fullHeight>
+              <p className="text-xs text-zinc-500 mb-3 leading-relaxed">
+                10-15 min metabolic add-on for extra fat burn. <span className="text-zinc-300">Optional</span> — skip if you're already running short on recovery.
+              </p>
+              <div className="space-y-1.5 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                {FINISHERS.map((f) => (
+                  <button key={f.id}
+                    onClick={() => { setFinisher(f); setShowFinisherPicker(false); }}
+                    className={`w-full p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-[0.99] text-left transition border ${
+                      finisher?.id === f.id ? "border-orange-400" : "border-zinc-700"
+                    }`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-zinc-100">{f.name}</div>
+                        <div className="text-[11px] text-zinc-500 mt-0.5">{f.duration}</div>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-600">{f.equipment}</span>
+                          <span className="text-zinc-700 text-[9px]">·</span>
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-600">
+                            {f.diff === 1 ? "Easy" : f.diff === 2 ? "Moderate" : "Hard"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                        <div className="flex items-center gap-1 text-orange-400 font-bold mono">
+                          <Flame className="w-3 h-3" />
+                          <span className="text-sm">+{f.kcal}</span>
+                        </div>
+                        <div className="text-[9px] text-zinc-600 mt-0.5">kcal</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Modal>
           )}
 
           {/* Rest timer overlay */}
@@ -3209,6 +3331,205 @@
               </div>
             </div>
           )}
+
+          {/* Completion screen with fire animation */}
+          {completionScreen && (
+            <CompletionScreen
+              summary={completionScreen}
+              profile={profile}
+              dayName={w.day}
+              duration={duration}
+              onDone={() => {
+                onSave({ ...w, duration, finisher });
+                setCompletionScreen(null);
+              }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ============ COMPLETION SCREEN with FIRE ANIMATION ============
+    function CompletionScreen({ summary, profile, dayName, duration, onDone }) {
+      const { burn, totalSets, completedSets, totalVol, finisher } = summary;
+
+      // Trigger haptic + sound on mount
+      useEffect(() => {
+        if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 200]);
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          // Quick triumphant 3-note arpeggio
+          [523, 659, 784].forEach((freq, i) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.frequency.value = freq;
+            const start = ctx.currentTime + i * 0.12;
+            g.gain.setValueAtTime(0.18, start);
+            g.gain.exponentialRampToValueAtTime(0.01, start + 0.3);
+            o.start(start); o.stop(start + 0.3);
+          });
+        } catch (e) { /* silent */ }
+      }, []);
+
+      // Calorie context vs daily target
+      const totalLoss = profile?.startWeight && profile?.goalWeight
+        ? Math.max(0.5, profile.startWeight - profile.goalWeight) : 5;
+      const dailyDeficit = profile?.durationDays
+        ? Math.round((totalLoss * 7700) / profile.durationDays) : 500;
+      const fatGramsBurned = ((burn / 7700) * 1000).toFixed(0);
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
+          {/* Fire particles — pure CSS, no dependencies */}
+          <FireAnimation />
+
+          <div className="relative w-full max-w-md">
+            {/* Hero */}
+            <div className="text-center mb-6 relative z-10">
+              {/* Big flame icon */}
+              <div className="relative inline-block mb-4">
+                <div className="absolute inset-0 blur-2xl opacity-70" style={{ background: "radial-gradient(circle, #f97316, #ef4444 40%, transparent 70%)" }} />
+                <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                  <svg viewBox="0 0 100 100" className="w-24 h-24" style={{ filter: "drop-shadow(0 0 20px rgba(249,115,22,0.6))" }}>
+                    <defs>
+                      <linearGradient id="flameGrad" x1="0" y1="100%" x2="0" y2="0">
+                        <stop offset="0%" stopColor="#fbbf24" />
+                        <stop offset="40%" stopColor="#f97316" />
+                        <stop offset="100%" stopColor="#dc2626" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M50 90 C 25 90, 18 65, 30 45 C 30 60, 38 60, 38 50 C 38 30, 50 20, 45 5 C 60 15, 75 35, 70 55 C 70 45, 62 50, 62 60 C 70 50, 82 65, 78 80 C 75 90, 62 90, 50 90 Z"
+                      fill="url(#flameGrad)" className="flame-flicker" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-1">Workout Complete</div>
+              <h1 className="text-3xl font-bold text-zinc-100">You crushed it.</h1>
+              <p className="text-zinc-400 text-sm mt-1">{dayName} day · {duration} min</p>
+            </div>
+
+            {/* Big burn number */}
+            <div className="bg-gradient-to-br from-orange-500/20 via-zinc-900 to-zinc-900 border border-orange-500/30 rounded-3xl p-6 mb-4 relative overflow-hidden">
+              <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full opacity-30 blur-3xl bg-orange-500 flame-pulse" />
+              <div className="relative z-10 text-center">
+                <div className="text-orange-400 text-[10px] uppercase tracking-widest font-bold mb-1">Calories burned</div>
+                <div className="flex items-baseline justify-center gap-2 mt-1">
+                  <span className="text-6xl font-bold mono" style={{ background: "linear-gradient(180deg, #fbbf24, #f97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                    {burn}
+                  </span>
+                  <span className="text-zinc-400 font-semibold">kcal</span>
+                </div>
+                <div className="text-xs text-zinc-500 mt-2">≈ <span className="text-orange-300 font-semibold">{fatGramsBurned}g of fat</span> · {Math.round((burn / dailyDeficit) * 100)}% of today's deficit goal</div>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-center">
+                <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold">Sets</div>
+                <div className="text-lg font-bold text-zinc-100 mono">{totalSets}</div>
+                {completedSets > 0 && completedSets < totalSets && (
+                  <div className="text-[9px] text-lime-400 mono">{completedSets} ✓</div>
+                )}
+              </div>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-center">
+                <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold">Volume</div>
+                <div className="text-lg font-bold text-zinc-100 mono">{Math.round(totalVol)}<span className="text-[9px] text-zinc-500"> kg</span></div>
+              </div>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-center">
+                <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold">Time</div>
+                <div className="text-lg font-bold text-zinc-100 mono">{duration}<span className="text-[9px] text-zinc-500"> min</span></div>
+              </div>
+            </div>
+
+            {/* Finisher line if used */}
+            {finisher && (
+              <div className="bg-zinc-900 border border-orange-500/30 rounded-xl p-3 mb-4 flex items-center gap-3">
+                <Flame className="w-4 h-4 text-orange-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] text-orange-400 uppercase tracking-wider font-bold">Finisher completed</div>
+                  <div className="text-xs text-zinc-300 truncate">{finisher.name} · +{finisher.kcal} kcal</div>
+                </div>
+              </div>
+            )}
+
+            {/* Motivational tagline */}
+            <div className="text-center mb-5">
+              <p className="text-zinc-500 text-xs italic">
+                {burn > 350 ? "That's serious work. Your goal just got closer." :
+                 burn > 250 ? "Solid session. Consistency wins this game." :
+                 "Every session counts. Show up tomorrow."}
+              </p>
+            </div>
+
+            {/* Done button */}
+            <button onClick={onDone}
+              className="w-full py-4 rounded-2xl font-bold text-zinc-900 flex items-center justify-center gap-2"
+              style={{ background: ACCENT, boxShadow: "0 0 30px rgba(163,230,53,0.3)" }}>
+              <Check className="w-4 h-4" strokeWidth={3} /> Save & finish
+            </button>
+          </div>
+
+          {/* Fire animation styles */}
+          <style>{`
+            @keyframes flicker {
+              0%, 100% { transform: scaleY(1) translateY(0); opacity: 1; }
+              25%      { transform: scaleY(1.05) translateY(-2px); opacity: 0.95; }
+              50%      { transform: scaleY(0.97) translateY(1px); opacity: 1; }
+              75%      { transform: scaleY(1.03) translateY(-1px); opacity: 0.97; }
+            }
+            .flame-flicker { animation: flicker 0.4s ease-in-out infinite; transform-origin: center bottom; }
+            @keyframes pulse-glow {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50%      { opacity: 0.5; transform: scale(1.1); }
+            }
+            .flame-pulse { animation: pulse-glow 2s ease-in-out infinite; }
+            @keyframes spark-rise {
+              0%   { transform: translateY(0) scale(0.4); opacity: 0; }
+              15%  { opacity: 1; }
+              85%  { opacity: 1; }
+              100% { transform: translateY(-100vh) scale(1); opacity: 0; }
+            }
+            .spark { position: absolute; bottom: 0; border-radius: 50%; pointer-events: none; animation: spark-rise linear infinite; }
+          `}</style>
+        </div>
+      );
+    }
+
+    // Pure-CSS particle fire animation — no canvas, no dependencies, smooth on phones.
+    // Spawns ~25 sparks at random positions, sizes, durations, and warm colors.
+    function FireAnimation() {
+      const sparks = useMemo(() => {
+        const colors = ["#fbbf24", "#f97316", "#ef4444", "#dc2626", "#fde047"];
+        return Array.from({ length: 28 }, (_, i) => ({
+          id: i,
+          left: Math.random() * 100,
+          size: 3 + Math.random() * 6,
+          duration: 2 + Math.random() * 3,
+          delay: Math.random() * 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          blur: Math.random() > 0.5,
+        }));
+      }, []);
+
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          {sparks.map((s) => (
+            <div key={s.id} className="spark"
+              style={{
+                left: `${s.left}%`,
+                width: `${s.size}px`,
+                height: `${s.size}px`,
+                background: s.color,
+                boxShadow: `0 0 ${s.size * 2}px ${s.color}`,
+                filter: s.blur ? `blur(${s.size / 4}px)` : "none",
+                animationDuration: `${s.duration}s`,
+                animationDelay: `${s.delay}s`,
+                opacity: 0,
+              }} />
+          ))}
         </div>
       );
     }
