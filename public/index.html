@@ -35,7 +35,6 @@
     <div class="lbl">Loading FitTrack Pro…</div>
   </div>
   <div id="root"></div>
-
   <script type="importmap">
   {
     "imports": {
@@ -46,7 +45,6 @@
     }
   }
   </script>
-
   <script>
     const KEY_TO_ENDPOINT = {
       'ftp:profile': '/api/profile',
@@ -90,7 +88,6 @@
       if (el) el.innerHTML = '<div class="err"><strong style="color:#f87171">Backend not reachable</strong><br><br>Make sure the server is running:<br><br><code style="background:#27272a;padding:6px 10px;border-radius:6px;color:#a3e635">npm start</code><br><br>Then refresh this page.</div>';
     });
   </script>
-
   <script type="text/babel" data-type="module" data-presets="react">
     import React, { useState, useEffect, useMemo } from "react";
     import { createRoot } from "react-dom/client";
@@ -682,112 +679,266 @@
     const EQ_LABEL = { barbell: "Barbell", dumbbell: "Dumbbell", cable: "Cable", machine: "Machine", smith: "Smith", bodyweight: "Bodyweight" };
     const EQ_COLOR = { barbell: "#a3e635", dumbbell: "#38bdf8", cable: "#f59e0b", machine: "#a78bfa", smith: "#fb7185", bodyweight: "#94a3b8" };
 
-    // ============ PERSONALIZED PLAN GENERATOR ============
-    // Returns the prescribed exercises for a given day with sets × reps × rest, tuned to the user's
-    // goal pace (high/moderate/low fat-loss target). High pace = more volume + shorter rest (some
-    // metabolic-style work). Low pace = strength-focused, longer rest, lower reps.
-    function getDayPrescription(splitType, day, tier) {
-      // Volume profiles by tier
+    // ============ EVIDENCE-BASED PLAN GENERATOR ============
+    // Based on hypertrophy & strength research (Schoenfeld, Helms, Israetel et al).
+    // Uses three core principles:
+    //
+    //   1. WEEKLY VOLUME PER MUSCLE GROUP follows MEV / MAV / MRV ranges.
+    //      MEV (Minimum Effective Volume) = the floor for muscle preservation/growth (~10 sets/wk)
+    //      MAV (Maximum Adaptive Volume) = the sweet spot for most lifters (~14-18 sets/wk)
+    //      MRV (Maximum Recoverable Volume) = the ceiling, beyond which fatigue exceeds recovery (~20-22 sets/wk)
+    //
+    //   2. MOVEMENT PATTERN BALANCE per session — push days need horizontal AND vertical pressing,
+    //      pull days need horizontal AND vertical pulling, leg days need quad-dominant AND hip-dominant.
+    //
+    //   3. REP RANGES match exercise role:
+    //      Primary compounds (squat/bench/deadlift): 4-6 reps, 3-5 min rest — strength
+    //      Secondary compounds (incline DB, RDL, dips): 6-10 reps, 2-3 min rest — strength + size
+    //      Isolations (lateral raise, curl, fly): 10-15 reps, 60-90s rest — hypertrophy
+    //      Finishers/core: 15-20 reps or time, short rest
+
+    // Weekly per-muscle volume targets, scaled by tier.
+    // In a fat-loss phase we sit at MEV-MAV (preserves muscle without overreaching).
+    const WEEKLY_VOLUME = {
+      high:     { chest: 10, back: 12, shoulders: 9,  biceps: 8,  triceps: 9,  quads: 8,  hamstrings: 6, glutes: 6, calves: 6, core: 6 },
+      moderate: { chest: 12, back: 14, shoulders: 12, biceps: 10, triceps: 10, quads: 10, hamstrings: 8, glutes: 8, calves: 8, core: 6 },
+      low:      { chest: 14, back: 16, shoulders: 14, biceps: 12, triceps: 12, quads: 12, hamstrings: 10, glutes: 10, calves: 10, core: 6 },
+    };
+
+    // Each exercise: { name, role, primary muscle, secondary muscles, pattern, reps, sets, rest }
+    // role: "primary" (heaviest compound), "secondary" (compound but lighter), "isolation", "core"
+    // pattern: "horizontal_push", "vertical_push", "horizontal_pull", "vertical_pull",
+    //          "quad_dominant", "hip_dominant", "knee_iso", "single_joint", "core"
+    const EX = {
+      // ── Pressing (Push)
+      bench_bb:        { name: "Barbell Bench Press",       role: "primary",   primary: "chest",     secondary: ["triceps", "shoulders"], pattern: "horizontal_push" },
+      bench_db:        { name: "Dumbbell Bench Press",      role: "secondary", primary: "chest",     secondary: ["triceps", "shoulders"], pattern: "horizontal_push" },
+      incline_db:      { name: "Incline Dumbbell Press",    role: "secondary", primary: "chest",     secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
+      incline_bb:      { name: "Incline Barbell Press",     role: "secondary", primary: "chest",     secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
+      dips_chest:      { name: "Dips (chest-focused)",      role: "secondary", primary: "chest",     secondary: ["triceps"],              pattern: "horizontal_push" },
+      pushup:          { name: "Push-ups",                  role: "secondary", primary: "chest",     secondary: ["triceps"],              pattern: "horizontal_push" },
+      cable_fly:       { name: "Cable Fly (mid)",           role: "isolation", primary: "chest",     secondary: [],                       pattern: "single_joint" },
+      pec_deck:        { name: "Pec Deck Machine",          role: "isolation", primary: "chest",     secondary: [],                       pattern: "single_joint" },
+      ohp_bb:          { name: "Overhead Press (barbell)",  role: "primary",   primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
+      ohp_db:          { name: "Overhead Press (dumbbell)", role: "secondary", primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
+      seated_db_press: { name: "Seated DB Press",           role: "secondary", primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
+      arnold:          { name: "Arnold Press",              role: "secondary", primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
+      lat_raise_db:    { name: "Lateral Raise (DB)",        role: "isolation", primary: "shoulders", secondary: [],                       pattern: "single_joint" },
+      lat_raise_cable: { name: "Lateral Raise (cable)",     role: "isolation", primary: "shoulders", secondary: [],                       pattern: "single_joint" },
+      rear_delt_db:    { name: "Rear Delt Fly (DB)",        role: "isolation", primary: "shoulders", secondary: ["back"],                 pattern: "single_joint" },
+      face_pull:       { name: "Face Pull",                 role: "isolation", primary: "shoulders", secondary: ["back"],                 pattern: "single_joint" },
+
+      // ── Pulling
+      deadlift_bb:     { name: "Conventional Deadlift",     role: "primary",   primary: "back",      secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
+      pullup:          { name: "Pull-ups",                  role: "primary",   primary: "back",      secondary: ["biceps"],               pattern: "vertical_pull" },
+      chinup:          { name: "Chin-ups",                  role: "primary",   primary: "back",      secondary: ["biceps"],               pattern: "vertical_pull" },
+      lat_pulldown:    { name: "Lat Pulldown (wide)",       role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "vertical_pull" },
+      row_bb:          { name: "Barbell Row (overhand)",    role: "primary",   primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
+      row_db:          { name: "Single-arm DB Row",         role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
+      cable_row:       { name: "Seated Cable Row",          role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
+      t_bar_row:       { name: "T-Bar Row",                 role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
+
+      // ── Legs
+      squat_bb:        { name: "Back Squat",                role: "primary",   primary: "quads",     secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
+      front_squat:     { name: "Front Squat",               role: "primary",   primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
+      leg_press:       { name: "Leg Press",                 role: "secondary", primary: "quads",     secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
+      hack_squat:      { name: "Hack Squat",                role: "secondary", primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
+      bulgarian:       { name: "Bulgarian Split Squat",     role: "secondary", primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
+      lunges:          { name: "Walking Lunges",            role: "secondary", primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
+      leg_ext:         { name: "Leg Extension",             role: "isolation", primary: "quads",     secondary: [],                       pattern: "knee_iso" },
+      rdl_bb:          { name: "Romanian Deadlift",         role: "primary",   primary: "hamstrings", secondary: ["glutes", "back"],      pattern: "hip_dominant" },
+      hip_thrust:      { name: "Hip Thrust",                role: "secondary", primary: "glutes",    secondary: ["hamstrings"],           pattern: "hip_dominant" },
+      leg_curl:        { name: "Leg Curl (lying)",          role: "isolation", primary: "hamstrings", secondary: [],                      pattern: "knee_iso" },
+      calf_raise_std:  { name: "Calf Raise (standing)",     role: "isolation", primary: "calves",    secondary: [],                       pattern: "single_joint" },
+
+      // ── Arms
+      curl_bb:         { name: "Barbell Curl",              role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
+      curl_db:         { name: "DB Curl (alternating)",     role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
+      hammer_curl:     { name: "Hammer Curl",               role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
+      incline_curl:    { name: "Incline DB Curl",           role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
+      preacher_curl:   { name: "Preacher Curl (machine)",   role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
+      cable_curl:      { name: "Cable Curl (rope)",         role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
+      cgbp:            { name: "Close-grip Bench Press",    role: "secondary", primary: "triceps",   secondary: ["chest"],                pattern: "horizontal_push" },
+      skullcrushers:   { name: "Skullcrushers (EZ)",        role: "isolation", primary: "triceps",   secondary: [],                       pattern: "single_joint" },
+      pushdown_rope:   { name: "Tricep Pushdown (rope)",    role: "isolation", primary: "triceps",   secondary: [],                       pattern: "single_joint" },
+      oh_extension:    { name: "Overhead Cable Extension",  role: "isolation", primary: "triceps",   secondary: [],                       pattern: "single_joint" },
+      dips_tri:        { name: "Dips (tricep-focused)",     role: "secondary", primary: "triceps",   secondary: ["chest"],                pattern: "horizontal_push" },
+
+      // ── Core
+      plank:           { name: "Plank",                     role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
+      hanging_kr:      { name: "Hanging Knee Raise",        role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
+      hanging_lr:      { name: "Hanging Leg Raise",         role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
+      cable_crunch:    { name: "Cable Crunch",              role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
+    };
+
+    // Day templates: each entry specifies the role + ideal pattern coverage.
+    // The system picks specific exercises to satisfy these slots while balancing patterns.
+    const DAY_TEMPLATES = {
+      PPL: {
+        Push: [
+          // Required: 1 horizontal press primary, 1 vertical press, secondary horizontal, isolations
+          { role: "primary",   muscle: "chest",     pattern: "horizontal_push",  options: ["bench_bb", "incline_bb"] },
+          { role: "secondary", muscle: "chest",     pattern: "horizontal_push",  options: ["incline_db", "bench_db", "dips_chest"] },
+          { role: "secondary", muscle: "shoulders", pattern: "vertical_push",    options: ["ohp_db", "seated_db_press", "ohp_bb"] },
+          { role: "isolation", muscle: "chest",     pattern: "single_joint",     options: ["cable_fly", "pec_deck"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint",     options: ["lat_raise_db", "lat_raise_cable"] },
+          { role: "isolation", muscle: "triceps",   pattern: "single_joint",     options: ["pushdown_rope", "oh_extension", "skullcrushers"] },
+          { role: "isolation", muscle: "triceps",   pattern: "single_joint",     options: ["skullcrushers", "oh_extension", "pushdown_rope"] },
+        ],
+        Pull: [
+          { role: "primary",   muscle: "back",      pattern: "vertical_pull",    options: ["pullup", "chinup"] },
+          { role: "primary",   muscle: "back",      pattern: "horizontal_pull",  options: ["row_bb", "t_bar_row"] },
+          { role: "secondary", muscle: "back",      pattern: "vertical_pull",    options: ["lat_pulldown"] },
+          { role: "secondary", muscle: "back",      pattern: "horizontal_pull",  options: ["cable_row", "row_db"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint",     options: ["face_pull", "rear_delt_db"] },
+          { role: "isolation", muscle: "biceps",    pattern: "single_joint",     options: ["curl_bb", "incline_curl"] },
+          { role: "isolation", muscle: "biceps",    pattern: "single_joint",     options: ["hammer_curl", "cable_curl"] },
+        ],
+        Legs: [
+          { role: "primary",   muscle: "quads",      pattern: "quad_dominant",   options: ["squat_bb", "front_squat"] },
+          { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",    options: ["rdl_bb"] },
+          { role: "secondary", muscle: "quads",      pattern: "quad_dominant",   options: ["leg_press", "hack_squat", "bulgarian"] },
+          { role: "isolation", muscle: "hamstrings", pattern: "knee_iso",        options: ["leg_curl"] },
+          { role: "isolation", muscle: "quads",      pattern: "knee_iso",        options: ["leg_ext"] },
+          { role: "isolation", muscle: "calves",     pattern: "single_joint",    options: ["calf_raise_std"] },
+          { role: "core",      muscle: "core",       pattern: "core",            options: ["plank", "hanging_kr"] },
+        ],
+      },
+      BRO: {
+        Chest: [
+          { role: "primary",   muscle: "chest", pattern: "horizontal_push", options: ["bench_bb"] },
+          { role: "secondary", muscle: "chest", pattern: "horizontal_push", options: ["incline_db", "incline_bb"] },
+          { role: "secondary", muscle: "chest", pattern: "horizontal_push", options: ["dips_chest", "bench_db"] },
+          { role: "isolation", muscle: "chest", pattern: "single_joint",    options: ["cable_fly", "pec_deck"] },
+          { role: "isolation", muscle: "chest", pattern: "single_joint",    options: ["pec_deck", "cable_fly"] },
+          { role: "secondary", muscle: "chest", pattern: "horizontal_push", options: ["pushup"] },
+        ],
+        Back: [
+          { role: "primary",   muscle: "back", pattern: "hip_dominant",    options: ["deadlift_bb"] },
+          { role: "primary",   muscle: "back", pattern: "vertical_pull",   options: ["pullup", "chinup"] },
+          { role: "primary",   muscle: "back", pattern: "horizontal_pull", options: ["row_bb", "t_bar_row"] },
+          { role: "secondary", muscle: "back", pattern: "vertical_pull",   options: ["lat_pulldown"] },
+          { role: "secondary", muscle: "back", pattern: "horizontal_pull", options: ["cable_row", "row_db"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint", options: ["face_pull", "rear_delt_db"] },
+        ],
+        Shoulders: [
+          { role: "primary",   muscle: "shoulders", pattern: "vertical_push", options: ["ohp_bb", "seated_db_press"] },
+          { role: "secondary", muscle: "shoulders", pattern: "vertical_push", options: ["arnold", "ohp_db"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["lat_raise_db"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["lat_raise_cable"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["rear_delt_db"] },
+          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["face_pull"] },
+        ],
+        Legs: [
+          { role: "primary",   muscle: "quads",      pattern: "quad_dominant", options: ["squat_bb", "front_squat"] },
+          { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",  options: ["rdl_bb"] },
+          { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["leg_press", "hack_squat"] },
+          { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["bulgarian", "lunges"] },
+          { role: "isolation", muscle: "hamstrings", pattern: "knee_iso",      options: ["leg_curl"] },
+          { role: "isolation", muscle: "quads",      pattern: "knee_iso",      options: ["leg_ext"] },
+          { role: "isolation", muscle: "calves",     pattern: "single_joint",  options: ["calf_raise_std"] },
+          { role: "core",      muscle: "core",       pattern: "core",          options: ["plank", "hanging_kr"] },
+        ],
+        Arms: [
+          { role: "primary",   muscle: "biceps",  pattern: "single_joint",   options: ["curl_bb"] },
+          { role: "secondary", muscle: "biceps",  pattern: "single_joint",   options: ["incline_curl", "preacher_curl"] },
+          { role: "isolation", muscle: "biceps",  pattern: "single_joint",   options: ["hammer_curl"] },
+          { role: "isolation", muscle: "biceps",  pattern: "single_joint",   options: ["cable_curl"] },
+          { role: "secondary", muscle: "triceps", pattern: "horizontal_push", options: ["cgbp", "dips_tri"] },
+          { role: "isolation", muscle: "triceps", pattern: "single_joint",    options: ["skullcrushers"] },
+          { role: "isolation", muscle: "triceps", pattern: "single_joint",    options: ["pushdown_rope"] },
+          { role: "isolation", muscle: "triceps", pattern: "single_joint",    options: ["oh_extension"] },
+        ],
+      },
+    };
+
+    // Sets/reps/rest for each exercise role, scaled by tier.
+    // Tuned so total weekly volume per muscle group stays within MEV-MRV across the full week.
+    function setsRepsRestFor(role, tier) {
       const profiles = {
-        high:     { compoundSets: 4, compoundReps: "8-10", isolationSets: 3, isolationReps: "12-15", restCompound: 90,  restIsolation: 60, finisher: true },
-        moderate: { compoundSets: 4, compoundReps: "6-8",  isolationSets: 3, isolationReps: "10-12", restCompound: 120, restIsolation: 75, finisher: false },
-        low:      { compoundSets: 4, compoundReps: "5-6",  isolationSets: 3, isolationReps: "8-10",  restCompound: 180, restIsolation: 90, finisher: false },
-      };
-      const p = profiles[tier] || profiles.moderate;
-
-      // Each entry: [exerciseName, "compound" | "isolation" | "core" | "finisher"]
-      const blueprints = {
-        PPL: {
-          Push: [
-            ["Barbell Bench Press", "compound"],
-            ["Incline Dumbbell Press", "compound"],
-            ["Overhead Press (dumbbell)", "compound"],
-            ["Lateral Raise (DB)", "isolation"],
-            ["Cable Fly (mid)", "isolation"],
-            ["Tricep Pushdown (rope)", "isolation"],
-            ["Skullcrushers (EZ)", "isolation"],
-          ],
-          Pull: [
-            ["Pull-ups", "compound"],
-            ["Barbell Row (overhand)", "compound"],
-            ["Lat Pulldown (wide)", "compound"],
-            ["Seated Cable Row", "isolation"],
-            ["Face Pull", "isolation"],
-            ["Barbell Curl", "isolation"],
-            ["Hammer Curl", "isolation"],
-          ],
-          Legs: [
-            ["Back Squat", "compound"],
-            ["Romanian Deadlift", "compound"],
-            ["Leg Press", "compound"],
-            ["Walking Lunges", "isolation"],
-            ["Leg Curl (lying)", "isolation"],
-            ["Calf Raise (standing)", "isolation"],
-            ["Plank", "core"],
-            ["Hanging Knee Raise", "core"],
-          ],
+        high: { // 6 lift days/week — keep per-exercise volume LOW so weekly stays in MAV
+          primary:   { sets: 3, reps: "6-8",   rest: 150 },
+          secondary: { sets: 3, reps: "8-12",  rest: 90  },
+          isolation: { sets: 2, reps: "12-15", rest: 60  },
+          core:      { sets: 3, reps: "30-60s", rest: 45  },
         },
-        BRO: {
-          Chest: [
-            ["Barbell Bench Press", "compound"],
-            ["Incline Dumbbell Press", "compound"],
-            ["Decline Dumbbell Press", "compound"],
-            ["Cable Fly (mid)", "isolation"],
-            ["Pec Deck Machine", "isolation"],
-            ["Dips (chest-focused)", "compound"],
-          ],
-          Back: [
-            ["Conventional Deadlift", "compound"],
-            ["Pull-ups", "compound"],
-            ["Barbell Row (overhand)", "compound"],
-            ["Lat Pulldown (wide)", "compound"],
-            ["Seated Cable Row", "isolation"],
-            ["Face Pull", "isolation"],
-          ],
-          Shoulders: [
-            ["Overhead Press (barbell)", "compound"],
-            ["Seated DB Press", "compound"],
-            ["Lateral Raise (DB)", "isolation"],
-            ["Lateral Raise (cable)", "isolation"],
-            ["Rear Delt Fly (DB)", "isolation"],
-            ["Face Pull", "isolation"],
-          ],
-          Legs: [
-            ["Back Squat", "compound"],
-            ["Romanian Deadlift", "compound"],
-            ["Leg Press", "compound"],
-            ["Bulgarian Split Squat", "compound"],
-            ["Leg Curl (lying)", "isolation"],
-            ["Leg Extension", "isolation"],
-            ["Calf Raise (standing)", "isolation"],
-            ["Plank", "core"],
-          ],
-          Arms: [
-            ["Barbell Curl", "compound"],
-            ["Incline DB Curl", "isolation"],
-            ["Hammer Curl", "isolation"],
-            ["Close-grip Bench Press", "compound"],
-            ["Skullcrushers (EZ)", "isolation"],
-            ["Tricep Pushdown (rope)", "isolation"],
-            ["Cable Curl (rope)", "isolation"],
-          ],
+        moderate: { // 5 lift days/week — moderate per-exercise
+          primary:   { sets: 4, reps: "5-8",   rest: 180 },
+          secondary: { sets: 3, reps: "6-10",  rest: 120 },
+          isolation: { sets: 2, reps: "10-15", rest: 75  },
+          core:      { sets: 3, reps: "30-60s", rest: 45  },
+        },
+        low: { // 3 lift days/week — push per-exercise volume up to hit MEV
+          primary:   { sets: 5, reps: "4-6",   rest: 240 },
+          secondary: { sets: 4, reps: "6-8",   rest: 150 },
+          isolation: { sets: 4, reps: "8-12",  rest: 90  },
+          core:      { sets: 3, reps: "30-60s", rest: 45  },
         },
       };
+      return profiles[tier]?.[role] || profiles.moderate.isolation;
+    }
 
-      const blueprint = blueprints[splitType]?.[day] || [];
+    // Build the day's prescription using the template + tier.
+    // Returns array of exercise objects with sets/reps/rest/role/muscle metadata.
+    function getDayPrescription(splitType, day, tier) {
+      const slots = DAY_TEMPLATES[splitType]?.[day] || [];
 
-      // Trim list based on tier — beginners on a low-pace plan don't need 8 exercises
-      const maxExercises = tier === "high" ? 7 : tier === "moderate" ? 6 : 5;
-      const trimmed = blueprint.slice(0, maxExercises);
+      // Trim slot count by tier — high pace gets more exercises, low pace fewer (since longer rest = longer session)
+      const maxSlots = tier === "high" ? 8 : tier === "moderate" ? 7 : 6;
+      const trimmed = slots.slice(0, maxSlots);
 
-      return trimmed.map(([name, type]) => {
-        const isCompound = type === "compound";
-        const isCore = type === "core";
-        const sets = isCompound ? p.compoundSets : isCore ? 3 : p.isolationSets;
-        const reps = isCompound ? p.compoundReps : isCore ? "30-60s" : p.isolationReps;
-        const rest = isCompound ? p.restCompound : isCore ? 45 : p.restIsolation;
-        return { name, type, sets, reps, rest };
+      // For each slot, pick the FIRST option (which is the gold-standard choice).
+      // The user can swap via the picker mid-workout if they don't have the equipment.
+      return trimmed.map((slot) => {
+        const exKey = slot.options[0];
+        const ex = EX[exKey];
+        const cfg = setsRepsRestFor(slot.role, tier);
+        return {
+          name: ex.name,
+          role: slot.role,
+          muscle: slot.muscle,
+          secondaryMuscles: ex.secondary || [],
+          pattern: slot.pattern,
+          sets: cfg.sets,
+          reps: cfg.reps,
+          rest: cfg.rest,
+        };
       });
+    }
+
+    // Calculate total weekly sets per muscle group across the user's full week.
+    // Counts primary muscle as 1 set; secondary muscles count as 0.5 sets (per Schoenfeld's "fractional volume").
+    function calculateWeeklyVolume(splitType, tier, weekPlan) {
+      const totals = {};
+      weekPlan.forEach((dayType) => {
+        if (dayType === "Rest" || dayType === "Cardio") return;
+        const rx = getDayPrescription(splitType, dayType, tier);
+        rx.forEach((ex) => {
+          totals[ex.muscle] = (totals[ex.muscle] || 0) + ex.sets;
+          ex.secondaryMuscles?.forEach((m) => {
+            totals[m] = (totals[m] || 0) + ex.sets * 0.5;
+          });
+        });
+      });
+      // Round for display
+      Object.keys(totals).forEach((k) => { totals[k] = +totals[k].toFixed(1); });
+      return totals;
+    }
+
+    // Returns volume status for a muscle: "low" / "optimal" / "high"
+    // based on MEV/MAV/MRV thresholds (research-supported ranges).
+    function volumeStatusFor(muscle, sets) {
+      // MEV = floor (below this, you'll lose muscle in a deficit)
+      // MRV = ceiling (above this, recovery is compromised — esp. in a deficit)
+      // Back has a higher ceiling because it's actually 5+ sub-muscles (lats, traps, rhomboids, rear delts, erectors).
+      // Biceps tolerate high volume because they recover fast and are hit indirectly during all back work.
+      const MEV = { chest: 8,  back: 10, shoulders: 8,  biceps: 6,  triceps: 6,  quads: 8,  hamstrings: 6, glutes: 6, calves: 6, core: 4 };
+      const MRV = { chest: 22, back: 30, shoulders: 24, biceps: 22, triceps: 20, quads: 20, hamstrings: 18, glutes: 18, calves: 16, core: 16 };
+      const mev = MEV[muscle] || 6;
+      const mrv = MRV[muscle] || 18;
+      if (sets < mev) return "low";
+      if (sets > mrv) return "high";
+      return "optimal";
     }
 
     // Suggest a starting weight based on the user's bodyweight + exercise type.
@@ -1836,15 +1987,31 @@
             {/* Expanded full list */}
             {expanded && (
               <div className="space-y-1.5 mb-3">
-                {prescription.map((rx, i) => (
-                  <div key={i} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-3 py-2">
-                    <div className="text-[12px] text-zinc-200 flex-1 min-w-0 truncate pr-2">{rx.name}</div>
-                    <div className="text-[11px] mono shrink-0 flex gap-2">
-                      <span className="text-lime-400 font-semibold">{rx.sets}×{rx.reps}</span>
-                      <span className="text-zinc-600">{rx.rest}s</span>
+                {prescription.map((rx, i) => {
+                  const roleColor = rx.role === "primary" ? "#a3e635" : rx.role === "secondary" ? "#38bdf8" : rx.role === "core" ? "#a78bfa" : "#94a3b8";
+                  const roleLabel = rx.role === "primary" ? "Primary" : rx.role === "secondary" ? "Secondary" : rx.role === "core" ? "Core" : "Isolation";
+                  return (
+                    <div key={i} className="bg-zinc-800/50 rounded-lg px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] text-zinc-100 truncate">{rx.name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: `${roleColor}25`, color: roleColor }}>
+                              {roleLabel}
+                            </span>
+                            {rx.muscle && (
+                              <span className="text-[9px] text-zinc-500 capitalize">→ {rx.muscle}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] mono shrink-0 flex flex-col items-end gap-0.5">
+                          <span className="text-lime-400 font-semibold">{rx.sets}×{rx.reps}</span>
+                          <span className="text-zinc-600 text-[10px]">{rx.rest}s rest</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <button onClick={() => setExpanded(false)}
                   className="w-full text-[11px] text-zinc-500 hover:text-zinc-300 py-1">
                   Show less ↑
@@ -2206,6 +2373,131 @@
       return dt.toISOString().slice(0, 10);
     }
 
+    // ============ WEEKLY VOLUME CARD ============
+    // Shows sets-per-muscle-group for the user's current weekly schedule.
+    // Color-coded by MEV/MAV/MRV — under, optimal, over.
+    function WeeklyVolumeCard({ profile, splitType }) {
+      const [showInfo, setShowInfo] = useState(false);
+
+      const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+      const weeklyTarget = totalLoss / (profile.durationDays / 7);
+      const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
+
+      const plans = {
+        PPL: {
+          high:     ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"],
+          moderate: ["Push", "Pull", "Legs", "Rest", "Push", "Pull", "Cardio"],
+          low:      ["Push", "Cardio", "Pull", "Rest", "Legs", "Cardio", "Rest"],
+        },
+        BRO: {
+          high:     ["Chest", "Back", "Shoulders", "Legs", "Arms", "Cardio", "Rest"],
+          moderate: ["Chest", "Back", "Shoulders", "Rest", "Legs", "Arms", "Cardio"],
+          low:      ["Chest", "Back", "Cardio", "Legs", "Rest", "Arms", "Rest"],
+        },
+      };
+      const week = plans[splitType][tier];
+
+      const volume = useMemo(() => calculateWeeklyVolume(splitType, tier, week), [splitType, tier]);
+
+      // Order muscles for display — primary movers first
+      const order = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
+      const muscleEntries = order
+        .filter((m) => volume[m] !== undefined && volume[m] > 0)
+        .map((m) => ({ muscle: m, sets: volume[m], status: volumeStatusFor(m, volume[m]) }));
+
+      const totalSets = muscleEntries.reduce((s, e) => s + e.sets, 0);
+      const optimalCount = muscleEntries.filter((e) => e.status === "optimal").length;
+
+      return (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold">Weekly Volume</span>
+                <button onClick={() => setShowInfo(true)}
+                  className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 hover:text-lime-400 text-[9px] font-bold flex items-center justify-center">
+                  ?
+                </button>
+              </div>
+              <div className="text-base font-bold text-zinc-100 mt-0.5">
+                {Math.round(totalSets)} sets · <span className="text-zinc-500 font-medium">{optimalCount}/{muscleEntries.length} muscles in optimal zone</span>
+              </div>
+            </div>
+            <div className="px-2.5 py-1 rounded-full bg-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              {tier === "high" ? "MEV-MAV" : tier === "moderate" ? "MAV" : "MAV-MRV"}
+            </div>
+          </div>
+
+          {/* Volume bars */}
+          <div className="space-y-2">
+            {muscleEntries.map(({ muscle, sets, status }) => {
+              const color = status === "optimal" ? ACCENT : status === "low" ? "#fb923c" : "#ef4444";
+              const label = status === "optimal" ? "✓ Optimal" : status === "low" ? "↑ Add more" : "↓ Too much";
+              // Bar fill: 22 sets = 100% (the MRV ceiling for chest/back). Other muscles will look fuller earlier — that's fine.
+              const fillPct = Math.min(100, (sets / 22) * 100);
+              return (
+                <div key={muscle} className="flex items-center gap-2">
+                  <div className="w-20 text-xs text-zinc-300 font-semibold capitalize shrink-0">{muscle}</div>
+                  <div className="flex-1 h-5 bg-zinc-800 rounded-md overflow-hidden relative">
+                    <div className="absolute inset-y-0 left-0 transition-all duration-500 rounded-md"
+                      style={{ width: `${fillPct}%`, background: color, opacity: 0.85 }} />
+                    <div className="relative z-10 h-full px-2 flex items-center justify-between">
+                      <span className="text-[11px] font-bold mono" style={{ color: fillPct > 30 ? "#0a0a0a" : "#a1a1aa" }}>
+                        {sets} sets
+                      </span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: fillPct > 50 ? "#0a0a0a" : color }}>
+                        {label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Educational info modal */}
+          {showInfo && (
+            <Modal onClose={() => setShowInfo(false)} title="How weekly volume works">
+              <div className="space-y-3 text-sm text-zinc-300">
+                <p>
+                  <span className="text-zinc-100 font-semibold">Weekly sets per muscle group</span> is the strongest predictor of muscle growth and preservation. Researchers split it into three zones:
+                </p>
+                <div className="space-y-2 my-3">
+                  <div className="flex gap-3 items-start">
+                    <div className="w-3 h-3 rounded-full mt-1 shrink-0" style={{ background: "#fb923c" }} />
+                    <div>
+                      <div className="font-semibold text-orange-300">Below MEV</div>
+                      <div className="text-xs text-zinc-400">Minimum Effective Volume — under this, you'll lose muscle in a cut. Add more sets.</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <div className="w-3 h-3 rounded-full mt-1 shrink-0" style={{ background: ACCENT }} />
+                    <div>
+                      <div className="font-semibold text-lime-300">Optimal (MAV zone)</div>
+                      <div className="text-xs text-zinc-400">Maximum Adaptive Volume — the sweet spot for growth and preservation. Most muscles grow best at 10-18 sets/week.</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <div className="w-3 h-3 rounded-full mt-1 shrink-0" style={{ background: "#ef4444" }} />
+                    <div>
+                      <div className="font-semibold text-red-300">Above MRV</div>
+                      <div className="text-xs text-zinc-400">Maximum Recoverable Volume — beyond this, recovery suffers (worse in a calorie deficit). Drop a set or two.</div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-500 pt-2 border-t border-zinc-800">
+                  Your plan sits at <span className="text-zinc-300 font-semibold">{tier === "high" ? "MEV-MAV (lower volume)" : tier === "moderate" ? "MAV (sweet spot)" : "MAV-MRV (higher volume)"}</span> — best for {tier === "high" ? "aggressive cuts where recovery is harder" : tier === "moderate" ? "balanced fat loss with muscle maintenance" : "gradual cuts where you can push more volume"}.
+                </p>
+                <p className="text-[10px] text-zinc-600 leading-relaxed">
+                  Sources: Schoenfeld et al. (2017, 2019), Israetel et al., Helms et al. (Volume-Hypertrophy meta-analyses)
+                </p>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    }
+
     // ============ WEEKLY SCHEDULE CARD ============
     function WeeklyScheduleCard({ profile, splitType, workouts, onStartDay }) {
       const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
@@ -2530,6 +2822,9 @@
             workouts={workouts}
             onStartDay={startWorkout}
           />
+
+          {/* Weekly volume per muscle group */}
+          <WeeklyVolumeCard profile={profile} splitType={splitType} />
 
           {/* Today */}
           {todayWorkout && (
