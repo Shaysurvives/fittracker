@@ -95,13 +95,15 @@
       Home, Dumbbell, Apple, TrendingUp, User, Plus, Check, X,
       Flame, Droplet, Trophy, ChevronLeft, ChevronRight, Target,
       Activity, Bell, Settings, Edit3, Trash2, Calendar, Award,
-      Zap, Heart, Ruler, ArrowRight, Save, Clock
+      Zap, Heart, Ruler, ArrowRight, Save, Clock, Info, Play,
+      Image as ImageIcon, ExternalLink
     } from "lucide-react";
     import {
       LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
       AreaChart, Area, BarChart, Bar, CartesianGrid, ReferenceLine
     } from "recharts";
 
+    // ============ CONSTANTS ============
     const ACCENT = "#a3e635"; // lime-400
     const ACCENT_DARK = "#65a30d";
     const KCAL_PER_KG_FAT = 7700;
@@ -1934,12 +1936,24 @@
       const reaches = shown.reachesGoal;
       const hue = reaches ? ACCENT : "#fb923c";
 
-      // End date calculation
+      // Date calculations
+      const startDate = useMemo(() => {
+        const d = new Date(profile.startDate);
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      }, [profile.startDate]);
+
       const endDate = useMemo(() => {
         const d = new Date(profile.startDate);
         d.setDate(d.getDate() + shown.daysToGoal);
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       }, [shown.daysToGoal, profile.startDate]);
+
+      // Days the user has already been on the plan (for "Day N of total")
+      const daysIntoPlan = useMemo(() => {
+        const start = new Date(profile.startDate);
+        const today = new Date();
+        return Math.max(0, Math.floor((today - start) / 86400000));
+      }, [profile.startDate]);
 
       return (
         <div className="rounded-2xl mb-4 relative overflow-hidden border"
@@ -1981,6 +1995,30 @@
             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-3">
               <div className="h-full transition-all duration-700"
                 style={{ width: `${percentToGoal}%`, background: hue }} />
+            </div>
+
+            {/* Plan timeline — start date, journey arrow, target date */}
+            <div className="bg-zinc-800/40 rounded-xl p-3 mb-3 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Started</div>
+                <div className="text-zinc-100 text-sm font-bold leading-tight">{startDate}</div>
+                <div className="text-[10px] text-zinc-500 mono mt-0.5">{profile.startWeight} kg</div>
+              </div>
+              <div className="flex flex-col items-center px-1 shrink-0">
+                <ArrowRight className="w-4 h-4 text-zinc-600" />
+                <div className="text-[9px] text-zinc-500 mono mt-0.5 whitespace-nowrap">
+                  {daysIntoPlan > 0 ? `Day ${daysIntoPlan + 1}` : "Today"}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 text-right">
+                <div className="text-[9px] uppercase tracking-wider font-bold" style={{ color: hue }}>
+                  {reaches ? "Goal hit" : "End of plan"}
+                </div>
+                <div className="text-zinc-100 text-sm font-bold leading-tight">{endDate}</div>
+                <div className="text-[10px] mono mt-0.5" style={{ color: hue }}>
+                  {shown.endWeight} kg · −{expectedLoss.toFixed(1)} kg
+                </div>
+              </div>
             </div>
 
             {/* Quick row */}
@@ -3099,6 +3137,7 @@
       const [finisher, setFinisher] = useState(workout.finisher || null); // selected finisher object
       const [showFinisherPicker, setShowFinisherPicker] = useState(false);
       const [completionScreen, setCompletionScreen] = useState(null); // shown after Save
+      const [exerciseInfo, setExerciseInfo] = useState(null); // shown when user taps the info icon
 
       // Rest timer countdown
       useEffect(() => {
@@ -3267,7 +3306,14 @@
                   <div className="flex items-start gap-2.5 flex-1 min-w-0">
                     <div className="w-1 self-stretch rounded-full mt-0.5" style={{ background: eqColor }} />
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold text-zinc-100 leading-tight">{ex.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="font-bold text-zinc-100 leading-tight">{ex.name}</div>
+                        <button onClick={() => setExerciseInfo(ex)}
+                          className="text-zinc-500 hover:text-lime-400 active:scale-90 p-0.5 transition shrink-0"
+                          title="View tutorial & form references">
+                          <Info className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-2 flex-wrap">
                         {ex.eq && <span>{EQ_LABEL[ex.eq]}</span>}
                         {ex.targetReps && (
@@ -3430,6 +3476,76 @@
               onPick={addExercise}
               onClose={() => setShowPicker(false)}
             />
+          )}
+
+          {/* Exercise reference modal — links out to YouTube tutorials and form images */}
+          {exerciseInfo && (
+            <Modal onClose={() => setExerciseInfo(null)} title="Exercise reference">
+              <div className="text-zinc-100 font-bold text-lg leading-tight mb-1">
+                {exerciseInfo.name}
+              </div>
+              <div className="text-zinc-500 text-xs mb-5 flex items-center gap-2">
+                {exerciseInfo.eq && (
+                  <>
+                    <div className="w-2 h-2 rounded-full" style={{ background: EQ_COLOR[exerciseInfo.eq] || "#a3e635" }} />
+                    <span>{EQ_LABEL[exerciseInfo.eq]}</span>
+                  </>
+                )}
+                {exerciseInfo.targetReps && (
+                  <>
+                    <span className="text-zinc-700">·</span>
+                    <span className="mono">{exerciseInfo.sets?.length || 3} × {exerciseInfo.targetReps}</span>
+                  </>
+                )}
+              </div>
+
+              <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-2">
+                Learn the form
+              </div>
+
+              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent("how to do " + exerciseInfo.name + " proper form tutorial")}`}
+                target="_blank" rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:scale-[0.99] transition mb-2">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+                  <Play className="w-5 h-5 text-red-400" fill="currentColor" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="text-zinc-100 font-bold text-sm">Watch tutorial</div>
+                  <div className="text-[11px] text-zinc-500">Top YouTube results</div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-zinc-500 shrink-0" />
+              </a>
+
+              <a href={`https://www.google.com/search?q=${encodeURIComponent(exerciseInfo.name + " exercise form")}&tbm=isch`}
+                target="_blank" rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 active:scale-[0.99] transition mb-2">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="text-zinc-100 font-bold text-sm">View reference images</div>
+                  <div className="text-[11px] text-zinc-500">Form & muscle anatomy</div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-zinc-500 shrink-0" />
+              </a>
+
+              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(exerciseInfo.name + " common mistakes")}`}
+                target="_blank" rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 active:scale-[0.99] transition">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <Target className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="text-zinc-100 font-bold text-sm">Common mistakes</div>
+                  <div className="text-[11px] text-zinc-500">What to avoid</div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-zinc-500 shrink-0" />
+              </a>
+
+              <p className="text-[10px] text-zinc-600 mt-5 text-center leading-relaxed">
+                External links open in a new tab. Watch a few different teachers and pick the form cue that clicks for you.
+              </p>
+            </Modal>
           )}
 
           {/* Finisher picker modal */}
