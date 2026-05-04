@@ -1259,35 +1259,21 @@
     };
 
     // ============ STORAGE LAYER ============
-    // `authMarker` is an opaque value that should change each time the user logs in/out.
-    // When it changes, the store re-fetches from the server. Pass `null` for "skip fetching".
-    const useStore = (key, initial, authMarker = "anon") => {
+    const useStore = (key, initial) => {
       const [val, setVal] = useState(initial);
       const [loaded, setLoaded] = useState(false);
 
       useEffect(() => {
-        if (authMarker === null) {
-          // Reset to default, don't fetch (e.g. logged out)
-          setVal(initial);
-          setLoaded(false);
-          return;
-        }
         let cancelled = false;
         (async () => {
           try {
             const r = await window.storage.get(key);
-            if (!cancelled) {
-              if (r && r.value) {
-                setVal(JSON.parse(r.value));
-              } else {
-                setVal(initial);
-              }
-            }
+            if (!cancelled && r && r.value) setVal(JSON.parse(r.value));
           } catch (e) { /* not found = use initial */ }
           if (!cancelled) setLoaded(true);
         })();
         return () => { cancelled = true; };
-      }, [key, authMarker]);
+      }, [key]);
 
       const save = async (next) => {
         setVal(next);
@@ -1297,168 +1283,19 @@
       return [val, save, loaded];
     };
 
-    // ============ LOGIN SCREEN ============
-    function LoginScreen({ onLoginRequested }) {
-      const [email, setEmail] = useState("");
-      const [status, setStatus] = useState("idle"); // idle | sending | sent | error
-      const [errorMsg, setErrorMsg] = useState("");
-      const [devMode, setDevMode] = useState(false);
-
-      const submit = async (e) => {
-        if (e) e.preventDefault();
-        const trimmed = email.trim().toLowerCase();
-        if (!trimmed || !trimmed.includes("@")) {
-          setStatus("error");
-          setErrorMsg("Please enter a valid email");
-          return;
-        }
-        setStatus("sending");
-        setErrorMsg("");
-        try {
-          const r = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: trimmed }),
-          });
-          if (!r.ok) {
-            const d = await r.json().catch(() => ({}));
-            setStatus("error");
-            setErrorMsg(d.error || "Failed to send email");
-            return;
-          }
-          const data = await r.json();
-          setDevMode(!!data.dev);
-          setStatus("sent");
-          if (onLoginRequested) onLoginRequested();
-        } catch (err) {
-          setStatus("error");
-          setErrorMsg("Network error — please try again");
-        }
-      };
-
-      return (
-        <div className="min-h-screen bg-gradient-to-b from-zinc-900 via-zinc-950 to-black flex items-center justify-center p-6 fade-in">
-          <div className="w-full max-w-md">
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 mb-6">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: ACCENT }}>
-                  <Flame className="w-6 h-6 text-zinc-900" strokeWidth={2.5} />
-                </div>
-                <span className="text-zinc-100 font-bold text-2xl tracking-tight">
-                  FitTrack <span style={{ color: ACCENT }}>Pro</span>
-                </span>
-              </div>
-              <h1 className="text-3xl font-bold text-zinc-100 mb-2">Welcome back</h1>
-              <p className="text-zinc-400 text-sm">
-                Sign in with email — no password needed.<br />
-                <span className="text-zinc-500">We'll send you a magic link.</span>
-              </p>
-            </div>
-
-            {status === "sent" ? (
-              <div className="bg-zinc-900 border border-lime-500/30 rounded-2xl p-6 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-lime-400/10 flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-7 h-7 text-lime-400" strokeWidth={3} />
-                </div>
-                <h2 className="text-zinc-100 font-bold text-lg mb-2">Check your email</h2>
-                <p className="text-zinc-400 text-sm leading-relaxed mb-4">
-                  We sent a sign-in link to <span className="text-zinc-200 font-semibold">{email}</span>. Click the link to log in. The link expires in 15 minutes.
-                </p>
-                {devMode && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-left text-xs mb-4">
-                    <div className="text-amber-400 font-bold mb-1">⚠ Dev mode</div>
-                    <div className="text-zinc-400">Email service is not configured — check your server logs for the magic link.</div>
-                  </div>
-                )}
-                <button onClick={() => { setStatus("idle"); setEmail(""); }}
-                  className="text-zinc-500 hover:text-zinc-300 text-sm underline">
-                  Use a different email
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                <Field label="Email address">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    disabled={status === "sending"}
-                    autoFocus
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none disabled:opacity-50"
-                  />
-                </Field>
-
-                {status === "error" && (
-                  <div className="text-red-400 text-xs mb-3 -mt-2">{errorMsg}</div>
-                )}
-
-                <button type="submit" disabled={status === "sending"}
-                  className="w-full py-3.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 disabled:opacity-50"
-                  style={{ background: ACCENT }}>
-                  {status === "sending" ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-zinc-900 border-t-transparent animate-spin" />
-                      Sending link...
-                    </>
-                  ) : (
-                    <>
-                      Send me a sign-in link <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-
-                <p className="text-[10px] text-zinc-600 text-center mt-4 leading-relaxed">
-                  By signing in you agree to use this app responsibly.<br />
-                  Your data stays private — only you can see it.
-                </p>
-              </form>
-            )}
-          </div>
-        </div>
-      );
-    }
 
     // ============ ROOT APP ============
     function App() {
-      // Auth state — null = checking, undefined = logged out, object = logged in
-      const [authUser, setAuthUser] = useState(null);
-      const [authChecked, setAuthChecked] = useState(false);
-
-      // Check auth status on mount
-      useEffect(() => {
-        let cancelled = false;
-        fetch("/api/auth/me")
-          .then((r) => r.json())
-          .then((data) => {
-            if (cancelled) return;
-            setAuthUser(data.user || null);
-            setAuthChecked(true);
-          })
-          .catch(() => {
-            if (cancelled) return;
-            setAuthUser(null);
-            setAuthChecked(true);
-          });
-        return () => { cancelled = true; };
-      }, []);
-
-      const authMarker = authUser ? `user:${authUser.id}` : null;
-      const [profile, setProfile] = useStore("ftp:profile", null, authMarker);
-      const [weights, setWeights] = useStore("ftp:weights", [], authMarker);
-      const [workouts, setWorkouts] = useStore("ftp:workouts", [], authMarker);
-      const [meals, setMeals] = useStore("ftp:meals", [], authMarker);
-      const [water, setWater] = useStore("ftp:water", {}, authMarker);
-      const [measurements, setMeasurements] = useStore("ftp:measurements", [], authMarker);
-      const [streak, setStreak] = useStore("ftp:streak", { count: 0, last: null }, authMarker);
-      const [customFoods, setCustomFoods] = useStore("ftp:customFoods", [], authMarker);
-      const [mealPresets, setMealPresets] = useStore("ftp:mealPresets", [], authMarker);
+      const [profile, setProfile] = useStore("ftp:profile", null);
+      const [weights, setWeights] = useStore("ftp:weights", []);
+      const [workouts, setWorkouts] = useStore("ftp:workouts", []);
+      const [meals, setMeals] = useStore("ftp:meals", []);
+      const [water, setWater] = useStore("ftp:water", {});
+      const [measurements, setMeasurements] = useStore("ftp:measurements", []);
+      const [streak, setStreak] = useStore("ftp:streak", { count: 0, last: null });
+      const [customFoods, setCustomFoods] = useStore("ftp:customFoods", []);
+      const [mealPresets, setMealPresets] = useStore("ftp:mealPresets", []);
       const [tab, setTab] = useState("home");
-
-      const handleLogout = async () => {
-        try { await fetch("/api/auth/logout", { method: "POST" }); } catch (e) {}
-        window.location.reload();
-      };
 
       // Update streak when user logs activity today
       useEffect(() => {
@@ -1473,25 +1310,6 @@
           setStreak({ count: newCount, last: today });
         }
       }, [meals, workouts]);
-
-      // Wait for auth check before rendering anything (avoids flicker)
-      if (!authChecked) {
-        return (
-          <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-2.5 h-2.5 rounded-full bg-lime-400 animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s` }} />
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      // Not logged in → show login
-      if (!authUser) {
-        return <LoginScreen onLoginRequested={() => { /* email sent */ }} />;
-      }
 
       if (!profile) {
         return <Onboarding onComplete={(p) => {
@@ -1510,8 +1328,6 @@
         customFoods, setCustomFoods,
         mealPresets, setMealPresets,
         streak,
-        authUser,
-        onLogout: handleLogout,
         setTab
       };
 
@@ -4525,7 +4341,7 @@
     );
 
     // ============ PROFILE SCREEN ============
-    function ProfileScreen({ profile, setProfile, measurements, setMeasurements, weights, authUser, onLogout, desktop = false }) {
+    function ProfileScreen({ profile, setProfile, measurements, setMeasurements, weights, desktop = false }) {
       const [editing, setEditing] = useState(false);
       const [showMeasure, setShowMeasure] = useState(false);
       const [newM, setNewM] = useState({ chest: 100, waist: 85, arms: 35 });
@@ -4607,23 +4423,6 @@
               value={profile.noTracking ? "On" : "Off"}
               onClick={() => setProfile({ ...profile, noTracking: !profile.noTracking })} />
           </div>
-
-          {/* Account section */}
-          {authUser && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
-              <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-2">Account</div>
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="text-zinc-100 text-sm font-semibold truncate">{authUser.email}</div>
-                  <div className="text-[11px] text-zinc-500">Logged in</div>
-                </div>
-                <button onClick={onLogout}
-                  className="ml-3 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold border border-zinc-700">
-                  Log out
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Reset */}
           <button onClick={() => {
