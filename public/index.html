@@ -989,6 +989,24 @@
       return estimateWorkoutBurn({ durationMin, totalSets, bodyweight });
     }
 
+    // Estimate burn per individual exercise based on its set count + a compound multiplier.
+    // Heavy compound lifts (squat, deadlift, bench) burn ~30% more per set than isolation work.
+    function estimateExerciseBurn(exercise, bodyweight = 75) {
+      const numSets = exercise.sets?.length || 0;
+      if (numSets === 0) return 0;
+      const name = (exercise.name || "").toLowerCase();
+      // Detect heavy compounds — they involve more muscle mass = higher burn
+      const isCompound =
+        /squat|deadlift|bench press|overhead press|ohp|row|lunge|clean|snatch|thrust|carry|pull[- ]up|chin[- ]up|dip/.test(name) &&
+        !/curl|extension|raise|fly|kickback/.test(name);
+      const compoundMultiplier = isCompound ? 1.3 : 1.0;
+      // Base time burn: ~2.5 min per set × 5 kcal/min × bodyweight adjustment
+      const timeBurn = numSets * 2.5 * 5 * (bodyweight / 70);
+      // Volume bonus: 6 kcal per set (EPOC effect)
+      const volumeBonus = numSets * 6;
+      return Math.round((timeBurn + volumeBonus) * compoundMultiplier);
+    }
+
     // Suggest a starting weight based on the user's bodyweight + exercise type.
     // Conservative — always rounds down so you can progress, not regress.
     function suggestStartWeight(exerciseName, bodyweight) {
@@ -3458,18 +3476,26 @@
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-0.5 ml-2">
-                    <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0}
-                      className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 p-1">
-                      <ChevronLeft className="w-3 h-3 rotate-90" />
-                    </button>
-                    <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === w.exercises.length - 1}
-                      className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 p-1">
-                      <ChevronRight className="w-3 h-3 rotate-90" />
-                    </button>
-                    <button onClick={() => removeExercise(exIdx)} className="text-zinc-600 hover:text-red-400 p-1 ml-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="flex flex-col items-end gap-1 ml-2">
+                    <div className="flex items-center gap-0.5">
+                      <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0}
+                        className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 p-1">
+                        <ChevronLeft className="w-3 h-3 rotate-90" />
+                      </button>
+                      <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === w.exercises.length - 1}
+                        className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20 p-1">
+                        <ChevronRight className="w-3 h-3 rotate-90" />
+                      </button>
+                      <button onClick={() => removeExercise(exIdx)} className="text-zinc-600 hover:text-red-400 p-1 ml-1">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20">
+                      <Flame className="w-3 h-3 text-orange-400" />
+                      <span className="text-[11px] text-orange-300 mono font-semibold">
+                        ~{estimateExerciseBurn(ex, profile?.weight || 75)} kcal
+                      </span>
+                    </div>
                   </div>
                 </div>
 
