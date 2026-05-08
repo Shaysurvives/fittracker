@@ -469,59 +469,108 @@
       { name: "Papad (1)", cal: 35, p: 2, c: 6, f: 0.5, cat: "Oils & Condiments" },
     ];
 
-    // Master exercise library: 20+ per muscle group, with equipment + difficulty.
-    // eq: barbell, dumbbell, cable, machine, bodyweight, smith
+    // Master exercise library: ~279 exercises across 7 muscle groups.
+    // eq: barbell, dumbbell, cable, machine, smith, bodyweight
     // lvl: 1=beginner, 2=intermediate, 3=advanced
     const EXERCISES = {
       Chest: [
         { name: "Barbell Bench Press", eq: "barbell", lvl: 2 },
         { name: "Incline Barbell Press", eq: "barbell", lvl: 2 },
         { name: "Decline Barbell Press", eq: "barbell", lvl: 2 },
+        { name: "Close-grip Bench Press", eq: "barbell", lvl: 2 },
+        { name: "Reverse-grip Bench Press", eq: "barbell", lvl: 3 },
+        { name: "Spoto Press", eq: "barbell", lvl: 3 },
+        { name: "Floor Press (barbell)", eq: "barbell", lvl: 2 },
+        { name: "Pin Press (barbell)", eq: "barbell", lvl: 3 },
+        { name: "Landmine Press", eq: "barbell", lvl: 2 },
         { name: "Dumbbell Bench Press", eq: "dumbbell", lvl: 1 },
         { name: "Incline Dumbbell Press", eq: "dumbbell", lvl: 1 },
         { name: "Decline Dumbbell Press", eq: "dumbbell", lvl: 2 },
-        { name: "Dumbbell Fly", eq: "dumbbell", lvl: 1 },
+        { name: "Single-arm DB Bench Press", eq: "dumbbell", lvl: 2 },
+        { name: "Neutral-grip DB Press", eq: "dumbbell", lvl: 1 },
+        { name: "Floor Press (dumbbell)", eq: "dumbbell", lvl: 1 },
+        { name: "Larsen Press", eq: "dumbbell", lvl: 3 },
+        { name: "Squeeze Press (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Dumbbell Fly (flat)", eq: "dumbbell", lvl: 1 },
         { name: "Incline Dumbbell Fly", eq: "dumbbell", lvl: 2 },
+        { name: "Decline Dumbbell Fly", eq: "dumbbell", lvl: 2 },
         { name: "Cable Fly (mid)", eq: "cable", lvl: 1 },
         { name: "Cable Fly (low to high)", eq: "cable", lvl: 2 },
         { name: "Cable Fly (high to low)", eq: "cable", lvl: 2 },
         { name: "Cable Crossover", eq: "cable", lvl: 2 },
+        { name: "Single-arm Cable Fly", eq: "cable", lvl: 2 },
+        { name: "Cable Bench Press", eq: "cable", lvl: 2 },
         { name: "Pec Deck Machine", eq: "machine", lvl: 1 },
         { name: "Machine Chest Press", eq: "machine", lvl: 1 },
+        { name: "Machine Incline Press", eq: "machine", lvl: 1 },
+        { name: "Machine Decline Press", eq: "machine", lvl: 1 },
+        { name: "Iso-lateral Chest Press", eq: "machine", lvl: 1 },
+        { name: "Hammer Strength Press", eq: "machine", lvl: 1 },
         { name: "Smith Machine Bench Press", eq: "smith", lvl: 1 },
+        { name: "Smith Incline Press", eq: "smith", lvl: 1 },
         { name: "Push-ups", eq: "bodyweight", lvl: 1 },
         { name: "Incline Push-ups", eq: "bodyweight", lvl: 1 },
         { name: "Decline Push-ups", eq: "bodyweight", lvl: 2 },
         { name: "Diamond Push-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Wide-grip Push-ups", eq: "bodyweight", lvl: 1 },
+        { name: "Archer Push-ups", eq: "bodyweight", lvl: 3 },
+        { name: "Plyo Push-ups", eq: "bodyweight", lvl: 3 },
+        { name: "Weighted Push-ups", eq: "bodyweight", lvl: 2 },
         { name: "Dips (chest-focused)", eq: "bodyweight", lvl: 2 },
-        { name: "Landmine Press", eq: "barbell", lvl: 2 },
         { name: "Svend Press", eq: "bodyweight", lvl: 1 },
       ],
       Back: [
         { name: "Conventional Deadlift", eq: "barbell", lvl: 3 },
         { name: "Sumo Deadlift", eq: "barbell", lvl: 3 },
+        { name: "Trap Bar Deadlift", eq: "barbell", lvl: 2 },
         { name: "Romanian Deadlift", eq: "barbell", lvl: 2 },
+        { name: "Stiff-leg Deadlift", eq: "barbell", lvl: 2 },
+        { name: "Deficit Deadlift", eq: "barbell", lvl: 3 },
+        { name: "Snatch-grip Deadlift", eq: "barbell", lvl: 3 },
         { name: "Rack Pulls", eq: "barbell", lvl: 2 },
         { name: "Pull-ups", eq: "bodyweight", lvl: 2 },
         { name: "Chin-ups", eq: "bodyweight", lvl: 2 },
         { name: "Wide-grip Pull-ups", eq: "bodyweight", lvl: 3 },
+        { name: "Neutral-grip Pull-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Weighted Pull-ups", eq: "bodyweight", lvl: 3 },
+        { name: "Assisted Pull-ups", eq: "machine", lvl: 1 },
+        { name: "Archer Pull-ups", eq: "bodyweight", lvl: 3 },
         { name: "Lat Pulldown (wide)", eq: "cable", lvl: 1 },
         { name: "Lat Pulldown (close)", eq: "cable", lvl: 1 },
+        { name: "Lat Pulldown (neutral)", eq: "cable", lvl: 1 },
+        { name: "Reverse-grip Lat Pulldown", eq: "cable", lvl: 1 },
+        { name: "Single-arm Lat Pulldown", eq: "cable", lvl: 2 },
+        { name: "Straight-arm Pulldown", eq: "cable", lvl: 1 },
         { name: "Barbell Row (overhand)", eq: "barbell", lvl: 2 },
         { name: "Barbell Row (underhand)", eq: "barbell", lvl: 2 },
         { name: "Pendlay Row", eq: "barbell", lvl: 3 },
+        { name: "Seal Row", eq: "barbell", lvl: 2 },
         { name: "T-Bar Row", eq: "barbell", lvl: 2 },
+        { name: "Chest-supported BB Row", eq: "barbell", lvl: 2 },
         { name: "Single-arm DB Row", eq: "dumbbell", lvl: 1 },
-        { name: "Chest-supported DB Row", eq: "dumbbell", lvl: 2 },
-        { name: "Seated Cable Row", eq: "cable", lvl: 1 },
-        { name: "Wide-grip Cable Row", eq: "cable", lvl: 1 },
-        { name: "Face Pull", eq: "cable", lvl: 1 },
-        { name: "Reverse Fly (machine)", eq: "machine", lvl: 1 },
-        { name: "Reverse Fly (dumbbell)", eq: "dumbbell", lvl: 1 },
-        { name: "Straight-arm Pulldown", eq: "cable", lvl: 1 },
+        { name: "Chest-supported DB Row", eq: "dumbbell", lvl: 1 },
+        { name: "Meadows Row", eq: "dumbbell", lvl: 3 },
+        { name: "Two-arm DB Row", eq: "dumbbell", lvl: 2 },
+        { name: "Seated Cable Row (wide)", eq: "cable", lvl: 1 },
+        { name: "Seated Cable Row (close)", eq: "cable", lvl: 1 },
+        { name: "Single-arm Cable Row", eq: "cable", lvl: 1 },
+        { name: "Half-kneeling Cable Row", eq: "cable", lvl: 2 },
+        { name: "Inverted Row", eq: "bodyweight", lvl: 1 },
+        { name: "TRX Row", eq: "bodyweight", lvl: 1 },
+        { name: "Hammer Strength Row", eq: "machine", lvl: 1 },
+        { name: "Iso-lateral Row", eq: "machine", lvl: 1 },
+        { name: "Machine High Row", eq: "machine", lvl: 1 },
+        { name: "Smith Machine Row", eq: "smith", lvl: 2 },
+        { name: "Dumbbell Pullover", eq: "dumbbell", lvl: 2 },
+        { name: "Lat Pullover Machine", eq: "machine", lvl: 1 },
+        { name: "Cable Pullover", eq: "cable", lvl: 1 },
+        { name: "Shrugs (barbell)", eq: "barbell", lvl: 1 },
+        { name: "Shrugs (dumbbell)", eq: "dumbbell", lvl: 1 },
+        { name: "Shrugs (cable)", eq: "cable", lvl: 1 },
+        { name: "Good Morning", eq: "barbell", lvl: 3 },
         { name: "Hyperextension", eq: "bodyweight", lvl: 1 },
-        { name: "Good Morning", eq: "barbell", lvl: 2 },
-        { name: "Meadows Row", eq: "barbell", lvl: 3 },
+        { name: "45° Back Extension", eq: "machine", lvl: 1 },
+        { name: "Reverse Hyperextension", eq: "machine", lvl: 2 },
       ],
       Shoulders: [
         { name: "Overhead Press (barbell)", eq: "barbell", lvl: 2 },
@@ -529,136 +578,220 @@
         { name: "Seated DB Press", eq: "dumbbell", lvl: 1 },
         { name: "Arnold Press", eq: "dumbbell", lvl: 2 },
         { name: "Push Press", eq: "barbell", lvl: 3 },
-        { name: "Behind-the-Neck Press", eq: "barbell", lvl: 3 },
-        { name: "Smith Shoulder Press", eq: "smith", lvl: 1 },
+        { name: "Behind-the-neck Press", eq: "barbell", lvl: 3 },
+        { name: "Pin Press (overhead)", eq: "barbell", lvl: 3 },
+        { name: "Single-arm DB Press", eq: "dumbbell", lvl: 2 },
+        { name: "Z Press", eq: "dumbbell", lvl: 3 },
+        { name: "Bradford Press", eq: "barbell", lvl: 3 },
+        { name: "Cuban Press", eq: "dumbbell", lvl: 2 },
         { name: "Machine Shoulder Press", eq: "machine", lvl: 1 },
+        { name: "Hammer Strength OHP", eq: "machine", lvl: 1 },
+        { name: "Smith Machine OHP", eq: "smith", lvl: 1 },
         { name: "Lateral Raise (DB)", eq: "dumbbell", lvl: 1 },
         { name: "Lateral Raise (cable)", eq: "cable", lvl: 1 },
         { name: "Lateral Raise (machine)", eq: "machine", lvl: 1 },
+        { name: "Leaning Lateral Raise", eq: "dumbbell", lvl: 2 },
+        { name: "Partial Lateral Raise", eq: "dumbbell", lvl: 2 },
+        { name: "Lateral Raise 21s", eq: "dumbbell", lvl: 2 },
+        { name: "Cable Y-Raise", eq: "cable", lvl: 2 },
         { name: "Front Raise (DB)", eq: "dumbbell", lvl: 1 },
-        { name: "Front Raise (cable)", eq: "cable", lvl: 1 },
+        { name: "Front Raise (barbell)", eq: "barbell", lvl: 1 },
         { name: "Front Raise (plate)", eq: "bodyweight", lvl: 1 },
+        { name: "Front Raise (cable)", eq: "cable", lvl: 1 },
         { name: "Rear Delt Fly (DB)", eq: "dumbbell", lvl: 1 },
         { name: "Rear Delt Fly (cable)", eq: "cable", lvl: 1 },
         { name: "Reverse Pec Deck", eq: "machine", lvl: 1 },
         { name: "Face Pull", eq: "cable", lvl: 1 },
-        { name: "Upright Row", eq: "barbell", lvl: 2 },
-        { name: "Cable Y-raise", eq: "cable", lvl: 2 },
-        { name: "Landmine Press", eq: "barbell", lvl: 2 },
-        { name: "Shrug (barbell)", eq: "barbell", lvl: 1 },
-        { name: "Shrug (dumbbell)", eq: "dumbbell", lvl: 1 },
+        { name: "Cable Face Pull (rope)", eq: "cable", lvl: 1 },
+        { name: "Prone Y-Raise", eq: "dumbbell", lvl: 2 },
+        { name: "Prone T-Raise", eq: "dumbbell", lvl: 2 },
+        { name: "Prone W-Raise", eq: "dumbbell", lvl: 2 },
+        { name: "Bent-over Rear Delt Cable", eq: "cable", lvl: 2 },
+        { name: "Pike Push-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Handstand Push-ups", eq: "bodyweight", lvl: 3 },
+        { name: "Wall Walks", eq: "bodyweight", lvl: 3 },
       ],
       Legs: [
         { name: "Back Squat", eq: "barbell", lvl: 2 },
         { name: "Front Squat", eq: "barbell", lvl: 3 },
-        { name: "Hack Squat", eq: "machine", lvl: 2 },
-        { name: "Goblet Squat", eq: "dumbbell", lvl: 1 },
-        { name: "Bulgarian Split Squat", eq: "dumbbell", lvl: 2 },
-        { name: "Smith Machine Squat", eq: "smith", lvl: 1 },
+        { name: "High-bar Squat", eq: "barbell", lvl: 2 },
+        { name: "Low-bar Squat", eq: "barbell", lvl: 3 },
+        { name: "Box Squat", eq: "barbell", lvl: 2 },
         { name: "Pause Squat", eq: "barbell", lvl: 3 },
+        { name: "Tempo Squat", eq: "barbell", lvl: 2 },
+        { name: "Safety Bar Squat", eq: "barbell", lvl: 2 },
+        { name: "Zercher Squat", eq: "barbell", lvl: 3 },
+        { name: "Goblet Squat", eq: "dumbbell", lvl: 1 },
+        { name: "Sumo Squat (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Hack Squat (machine)", eq: "machine", lvl: 1 },
+        { name: "Pendulum Squat", eq: "machine", lvl: 1 },
+        { name: "Belt Squat", eq: "machine", lvl: 2 },
+        { name: "Smith Machine Squat", eq: "smith", lvl: 1 },
+        { name: "Leg Press", eq: "machine", lvl: 1 },
+        { name: "Single-leg Leg Press", eq: "machine", lvl: 1 },
+        { name: "Bulgarian Split Squat", eq: "dumbbell", lvl: 2 },
+        { name: "Walking Lunges", eq: "dumbbell", lvl: 1 },
+        { name: "Reverse Lunge", eq: "dumbbell", lvl: 1 },
+        { name: "Lateral Lunge", eq: "dumbbell", lvl: 1 },
+        { name: "Curtsy Lunge", eq: "dumbbell", lvl: 2 },
+        { name: "Forward Lunge", eq: "dumbbell", lvl: 1 },
+        { name: "Step-up", eq: "dumbbell", lvl: 1 },
+        { name: "Pistol Squat", eq: "bodyweight", lvl: 3 },
+        { name: "Shrimp Squat", eq: "bodyweight", lvl: 3 },
+        { name: "Sissy Squat", eq: "bodyweight", lvl: 2 },
         { name: "Romanian Deadlift", eq: "barbell", lvl: 2 },
         { name: "Stiff-leg Deadlift", eq: "barbell", lvl: 2 },
-        { name: "Sumo Deadlift", eq: "barbell", lvl: 3 },
-        { name: "Leg Press", eq: "machine", lvl: 1 },
-        { name: "Leg Extension", eq: "machine", lvl: 1 },
+        { name: "Single-leg RDL (DB)", eq: "dumbbell", lvl: 2 },
+        { name: "Good Morning", eq: "barbell", lvl: 3 },
+        { name: "Glute-ham Raise", eq: "machine", lvl: 3 },
+        { name: "Nordic Curl", eq: "bodyweight", lvl: 3 },
         { name: "Leg Curl (lying)", eq: "machine", lvl: 1 },
         { name: "Leg Curl (seated)", eq: "machine", lvl: 1 },
-        { name: "Walking Lunges", eq: "dumbbell", lvl: 1 },
-        { name: "Reverse Lunges", eq: "dumbbell", lvl: 1 },
-        { name: "Step-ups", eq: "dumbbell", lvl: 1 },
-        { name: "Calf Raise (standing)", eq: "machine", lvl: 1 },
-        { name: "Calf Raise (seated)", eq: "machine", lvl: 1 },
+        { name: "Single-leg Leg Curl", eq: "machine", lvl: 2 },
+        { name: "Hip Thrust (barbell)", eq: "barbell", lvl: 2 },
+        { name: "Hip Thrust (machine)", eq: "machine", lvl: 1 },
+        { name: "Single-leg Hip Thrust", eq: "bodyweight", lvl: 2 },
+        { name: "Glute Bridge", eq: "bodyweight", lvl: 1 },
+        { name: "Single-leg Glute Bridge", eq: "bodyweight", lvl: 1 },
+        { name: "Cable Kickback", eq: "cable", lvl: 1 },
+        { name: "Machine Kickback", eq: "machine", lvl: 1 },
+        { name: "Hyperextension (glute)", eq: "bodyweight", lvl: 1 },
+        { name: "Reverse Hyperextension", eq: "machine", lvl: 2 },
+        { name: "Leg Extension", eq: "machine", lvl: 1 },
+        { name: "Single-leg Extension", eq: "machine", lvl: 2 },
+        { name: "Standing Calf Raise (BB)", eq: "barbell", lvl: 1 },
+        { name: "Calf Raise (machine)", eq: "machine", lvl: 1 },
+        { name: "Seated Calf Raise", eq: "machine", lvl: 1 },
         { name: "Donkey Calf Raise", eq: "machine", lvl: 2 },
-        { name: "Hip Thrust", eq: "barbell", lvl: 2 },
-        { name: "Glute Bridge", eq: "barbell", lvl: 1 },
-        { name: "Glute Ham Raise", eq: "bodyweight", lvl: 3 },
-        { name: "Box Jumps", eq: "bodyweight", lvl: 2 },
-        { name: "Sissy Squat", eq: "bodyweight", lvl: 2 },
+        { name: "Leg Press Calf Raise", eq: "machine", lvl: 1 },
+        { name: "Single-leg Calf Raise", eq: "bodyweight", lvl: 1 },
+        { name: "Smith Machine Calf Raise", eq: "smith", lvl: 1 },
+        { name: "Tibialis Raise", eq: "bodyweight", lvl: 1 },
       ],
       Biceps: [
         { name: "Barbell Curl", eq: "barbell", lvl: 1 },
-        { name: "EZ-bar Curl", eq: "barbell", lvl: 1 },
-        { name: "Wide-grip Barbell Curl", eq: "barbell", lvl: 2 },
+        { name: "EZ-Bar Curl", eq: "barbell", lvl: 1 },
+        { name: "EZ-Bar Curl (close)", eq: "barbell", lvl: 1 },
+        { name: "Wide-grip Barbell Curl", eq: "barbell", lvl: 1 },
+        { name: "Reverse Curl (EZ-bar)", eq: "barbell", lvl: 1 },
+        { name: "Reverse Curl (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Strict Curl", eq: "barbell", lvl: 2 },
+        { name: "Cheat Curl", eq: "barbell", lvl: 3 },
+        { name: "Drag Curl", eq: "barbell", lvl: 2 },
+        { name: "21s (barbell)", eq: "barbell", lvl: 2 },
         { name: "DB Curl (alternating)", eq: "dumbbell", lvl: 1 },
         { name: "DB Curl (simultaneous)", eq: "dumbbell", lvl: 1 },
         { name: "Hammer Curl", eq: "dumbbell", lvl: 1 },
         { name: "Cross-body Hammer Curl", eq: "dumbbell", lvl: 1 },
         { name: "Incline DB Curl", eq: "dumbbell", lvl: 2 },
-        { name: "Concentration Curl", eq: "dumbbell", lvl: 1 },
-        { name: "Preacher Curl (barbell)", eq: "barbell", lvl: 2 },
-        { name: "Preacher Curl (machine)", eq: "machine", lvl: 1 },
         { name: "Spider Curl", eq: "dumbbell", lvl: 2 },
-        { name: "Cable Curl (bar)", eq: "cable", lvl: 1 },
-        { name: "Cable Curl (rope)", eq: "cable", lvl: 1 },
-        { name: "Cable Hammer Curl", eq: "cable", lvl: 1 },
-        { name: "Drag Curl", eq: "barbell", lvl: 2 },
-        { name: "Reverse Curl", eq: "barbell", lvl: 2 },
+        { name: "Concentration Curl", eq: "dumbbell", lvl: 1 },
         { name: "Zottman Curl", eq: "dumbbell", lvl: 2 },
-        { name: "21s", eq: "barbell", lvl: 2 },
-        { name: "Chin-ups (bicep focus)", eq: "bodyweight", lvl: 2 },
+        { name: "Preacher Curl (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Preacher Curl (EZ-bar)", eq: "barbell", lvl: 1 },
+        { name: "Preacher Curl (machine)", eq: "machine", lvl: 1 },
+        { name: "Cable Curl (rope)", eq: "cable", lvl: 1 },
+        { name: "Cable Curl (bar)", eq: "cable", lvl: 1 },
+        { name: "Single-arm Cable Curl", eq: "cable", lvl: 1 },
+        { name: "High Cable Curl", eq: "cable", lvl: 2 },
+        { name: "Cable Hammer Curl (rope)", eq: "cable", lvl: 1 },
+        { name: "Behind-back Cable Curl", eq: "cable", lvl: 2 },
+        { name: "Machine Curl", eq: "machine", lvl: 1 },
+        { name: "Iso-lateral Curl Machine", eq: "machine", lvl: 1 },
+        { name: "Resistance Band Curl", eq: "bodyweight", lvl: 1 },
       ],
       Triceps: [
         { name: "Close-grip Bench Press", eq: "barbell", lvl: 2 },
-        { name: "Skullcrushers (EZ)", eq: "barbell", lvl: 2 },
-        { name: "Skullcrushers (DB)", eq: "dumbbell", lvl: 2 },
+        { name: "Reverse-grip Bench Press", eq: "barbell", lvl: 3 },
         { name: "JM Press", eq: "barbell", lvl: 3 },
-        { name: "Dips (tricep-focused)", eq: "bodyweight", lvl: 2 },
+        { name: "Floor Press (close grip)", eq: "barbell", lvl: 2 },
+        { name: "Pin Press (close grip)", eq: "barbell", lvl: 3 },
+        { name: "Tricep Dips (parallel)", eq: "bodyweight", lvl: 2 },
         { name: "Bench Dips", eq: "bodyweight", lvl: 1 },
-        { name: "Tricep Pushdown (rope)", eq: "cable", lvl: 1 },
-        { name: "Tricep Pushdown (bar)", eq: "cable", lvl: 1 },
-        { name: "Tricep Pushdown (V-bar)", eq: "cable", lvl: 1 },
-        { name: "Reverse-grip Pushdown", eq: "cable", lvl: 2 },
-        { name: "Overhead Cable Extension", eq: "cable", lvl: 1 },
-        { name: "Overhead DB Extension", eq: "dumbbell", lvl: 1 },
-        { name: "Single-arm DB Extension", eq: "dumbbell", lvl: 2 },
-        { name: "Tricep Kickback", eq: "dumbbell", lvl: 1 },
+        { name: "Ring Dips", eq: "bodyweight", lvl: 3 },
         { name: "Diamond Push-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Skullcrushers (EZ)", eq: "barbell", lvl: 2 },
+        { name: "Skullcrushers (barbell)", eq: "barbell", lvl: 2 },
+        { name: "Skullcrushers (DB)", eq: "dumbbell", lvl: 2 },
+        { name: "Decline Skullcrushers", eq: "barbell", lvl: 3 },
         { name: "Tate Press", eq: "dumbbell", lvl: 2 },
-        { name: "Cable Kickback", eq: "cable", lvl: 1 },
-        { name: "Machine Tricep Press", eq: "machine", lvl: 1 },
-        { name: "Smith Close-grip Bench", eq: "smith", lvl: 1 },
-        { name: "Tricep Dips (machine)", eq: "machine", lvl: 1 },
+        { name: "Tricep Pushdown (rope)", eq: "cable", lvl: 1 },
+        { name: "Tricep Pushdown (V-bar)", eq: "cable", lvl: 1 },
+        { name: "Tricep Pushdown (straight)", eq: "cable", lvl: 1 },
+        { name: "Reverse-grip Pushdown", eq: "cable", lvl: 1 },
+        { name: "Single-arm Pushdown", eq: "cable", lvl: 1 },
+        { name: "Overhead Cable Ext (rope)", eq: "cable", lvl: 1 },
+        { name: "Single-arm OH Cable Ext", eq: "cable", lvl: 1 },
+        { name: "French Press (seated)", eq: "barbell", lvl: 2 },
+        { name: "Lying Cable Extension", eq: "cable", lvl: 2 },
+        { name: "Single-arm DB OH Ext", eq: "dumbbell", lvl: 1 },
+        { name: "Two-arm DB OH Ext", eq: "dumbbell", lvl: 1 },
+        { name: "Tricep Kickback (DB)", eq: "dumbbell", lvl: 1 },
+        { name: "Tricep Kickback (cable)", eq: "cable", lvl: 1 },
+        { name: "Tricep Extension Machine", eq: "machine", lvl: 1 },
+        { name: "Iso-lateral Tricep Press", eq: "machine", lvl: 1 },
+        { name: "Resistance Band Pushdown", eq: "bodyweight", lvl: 1 },
       ],
       Abs: [
         { name: "Plank", eq: "bodyweight", lvl: 1 },
         { name: "Side Plank", eq: "bodyweight", lvl: 1 },
-        { name: "Crunches", eq: "bodyweight", lvl: 1 },
-        { name: "Bicycle Crunches", eq: "bodyweight", lvl: 1 },
-        { name: "Reverse Crunch", eq: "bodyweight", lvl: 1 },
-        { name: "Russian Twist", eq: "bodyweight", lvl: 1 },
-        { name: "Hanging Leg Raise", eq: "bodyweight", lvl: 3 },
+        { name: "RKC Plank", eq: "bodyweight", lvl: 2 },
+        { name: "Plank with Reach", eq: "bodyweight", lvl: 2 },
+        { name: "Hollow Body Hold", eq: "bodyweight", lvl: 2 },
+        { name: "L-sit", eq: "bodyweight", lvl: 3 },
+        { name: "Dragon Flag", eq: "bodyweight", lvl: 3 },
         { name: "Hanging Knee Raise", eq: "bodyweight", lvl: 2 },
-        { name: "Toes-to-bar", eq: "bodyweight", lvl: 3 },
-        { name: "V-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Hanging Leg Raise", eq: "bodyweight", lvl: 2 },
+        { name: "Toes-to-Bar", eq: "bodyweight", lvl: 3 },
         { name: "Cable Crunch", eq: "cable", lvl: 1 },
+        { name: "Reverse Crunch", eq: "bodyweight", lvl: 1 },
+        { name: "Bicycle Crunch", eq: "bodyweight", lvl: 1 },
+        { name: "V-ups", eq: "bodyweight", lvl: 2 },
+        { name: "Sit-ups", eq: "bodyweight", lvl: 1 },
         { name: "Decline Sit-ups", eq: "bodyweight", lvl: 1 },
+        { name: "Knee Tuck (decline)", eq: "bodyweight", lvl: 1 },
+        { name: "Russian Twist", eq: "bodyweight", lvl: 1 },
+        { name: "Russian Twist (weighted)", eq: "dumbbell", lvl: 2 },
+        { name: "Cable Woodchop", eq: "cable", lvl: 1 },
+        { name: "Cable Rotation", eq: "cable", lvl: 1 },
+        { name: "Pallof Press", eq: "cable", lvl: 1 },
+        { name: "Pallof Press (rotation)", eq: "cable", lvl: 2 },
+        { name: "Ab Wheel Rollout", eq: "bodyweight", lvl: 3 },
+        { name: "Barbell Rollout", eq: "barbell", lvl: 3 },
         { name: "Mountain Climbers", eq: "bodyweight", lvl: 1 },
+        { name: "Flutter Kicks", eq: "bodyweight", lvl: 1 },
+        { name: "Plate Twist", eq: "bodyweight", lvl: 1 },
         { name: "Dead Bug", eq: "bodyweight", lvl: 1 },
         { name: "Bird Dog", eq: "bodyweight", lvl: 1 },
-        { name: "Ab Wheel Rollout", eq: "bodyweight", lvl: 3 },
-        { name: "Hollow Body Hold", eq: "bodyweight", lvl: 2 },
-        { name: "Flutter Kicks", eq: "bodyweight", lvl: 1 },
-        { name: "Pallof Press", eq: "cable", lvl: 1 },
-        { name: "Cable Woodchop", eq: "cable", lvl: 1 },
-        { name: "Plate Twist", eq: "bodyweight", lvl: 1 },
-        { name: "Dragon Flag", eq: "bodyweight", lvl: 3 },
-        { name: "L-sit", eq: "bodyweight", lvl: 3 },
+        { name: "Farmer's Carry", eq: "dumbbell", lvl: 1 },
+        { name: "Suitcase Carry", eq: "dumbbell", lvl: 1 },
       ],
+    };
+
+    // Dedupe by exercise name — some exercises (e.g. RDL) legitimately belong to
+    // multiple muscle groups, but we don't want them showing twice in the picker.
+    const dedupeByName = (arr) => {
+      const seen = new Set();
+      return arr.filter((ex) => {
+        if (seen.has(ex.name)) return false;
+        seen.add(ex.name);
+        return true;
+      });
     };
 
     // Composed splits: PPL pulls from multiple muscle groups, Bro keeps them isolated.
     const PPL_EXERCISES = {
-      Push: [...EXERCISES.Chest, ...EXERCISES.Shoulders, ...EXERCISES.Triceps],
-      Pull: [...EXERCISES.Back, ...EXERCISES.Biceps],
-      Legs: [...EXERCISES.Legs, ...EXERCISES.Abs],
+      Push: dedupeByName([...EXERCISES.Chest, ...EXERCISES.Shoulders, ...EXERCISES.Triceps]),
+      Pull: dedupeByName([...EXERCISES.Back, ...EXERCISES.Biceps]),
+      Legs: dedupeByName([...EXERCISES.Legs, ...EXERCISES.Abs]),
     };
 
     const BRO_EXERCISES = {
       Chest: EXERCISES.Chest,
       Back: EXERCISES.Back,
       Shoulders: EXERCISES.Shoulders,
-      Legs: [...EXERCISES.Legs, ...EXERCISES.Abs],
-      Arms: [...EXERCISES.Biceps, ...EXERCISES.Triceps],
+      Legs: dedupeByName([...EXERCISES.Legs, ...EXERCISES.Abs]),
+      Arms: dedupeByName([...EXERCISES.Biceps, ...EXERCISES.Triceps]),
     };
 
     // Default starter exercises per session — these get pre-loaded when you tap "Start".
@@ -667,13 +800,13 @@
       PPL: {
         Push: ["Barbell Bench Press", "Incline Dumbbell Press", "Overhead Press (dumbbell)", "Lateral Raise (DB)", "Tricep Pushdown (rope)", "Skullcrushers (EZ)"],
         Pull: ["Pull-ups", "Barbell Row (overhand)", "Lat Pulldown (wide)", "Face Pull", "Barbell Curl", "Hammer Curl"],
-        Legs: ["Back Squat", "Romanian Deadlift", "Leg Press", "Leg Curl (lying)", "Calf Raise (standing)", "Plank"],
+        Legs: ["Back Squat", "Romanian Deadlift", "Leg Press", "Leg Curl (lying)", "Standing Calf Raise (BB)", "Plank"],
       },
       BRO: {
         Chest: ["Barbell Bench Press", "Incline Dumbbell Press", "Cable Fly (mid)", "Dips (chest-focused)", "Push-ups"],
         Back: ["Conventional Deadlift", "Pull-ups", "Barbell Row (overhand)", "Lat Pulldown (wide)", "Face Pull"],
-        Shoulders: ["Overhead Press (dumbbell)", "Lateral Raise (DB)", "Front Raise (DB)", "Rear Delt Fly (DB)", "Shrug (barbell)"],
-        Legs: ["Back Squat", "Romanian Deadlift", "Leg Press", "Walking Lunges", "Calf Raise (standing)", "Plank"],
+        Shoulders: ["Overhead Press (dumbbell)", "Lateral Raise (DB)", "Front Raise (DB)", "Rear Delt Fly (DB)", "Shrugs (barbell)"],
+        Legs: ["Back Squat", "Romanian Deadlift", "Leg Press", "Walking Lunges", "Standing Calf Raise (BB)", "Plank"],
         Arms: ["Barbell Curl", "Hammer Curl", "Tricep Pushdown (rope)", "Skullcrushers (EZ)", "Cable Curl (rope)"],
       },
     };
@@ -682,218 +815,398 @@
     const EQ_COLOR = { barbell: "#a3e635", dumbbell: "#38bdf8", cable: "#f59e0b", machine: "#a78bfa", smith: "#fb7185", bodyweight: "#94a3b8" };
 
     // ============ EVIDENCE-BASED PLAN GENERATOR ============
-    // Based on hypertrophy & strength research (Schoenfeld, Helms, Israetel et al).
-    // Uses three core principles:
-    //
-    //   1. WEEKLY VOLUME PER MUSCLE GROUP follows MEV / MAV / MRV ranges.
-    //      MEV (Minimum Effective Volume) = the floor for muscle preservation/growth (~10 sets/wk)
-    //      MAV (Maximum Adaptive Volume) = the sweet spot for most lifters (~14-18 sets/wk)
-    //      MRV (Maximum Recoverable Volume) = the ceiling, beyond which fatigue exceeds recovery (~20-22 sets/wk)
-    //
-    //   2. MOVEMENT PATTERN BALANCE per session — push days need horizontal AND vertical pressing,
-    //      pull days need horizontal AND vertical pulling, leg days need quad-dominant AND hip-dominant.
-    //
-    //   3. REP RANGES match exercise role:
-    //      Primary compounds (squat/bench/deadlift): 4-6 reps, 3-5 min rest — strength
-    //      Secondary compounds (incline DB, RDL, dips): 6-10 reps, 2-3 min rest — strength + size
-    //      Isolations (lateral raise, curl, fly): 10-15 reps, 60-90s rest — hypertrophy
-    //      Finishers/core: 15-20 reps or time, short rest
-
-    // Weekly per-muscle volume targets, scaled by tier.
-    // In a fat-loss phase we sit at MEV-MAV (preserves muscle without overreaching).
-    const WEEKLY_VOLUME = {
-      high:     { chest: 10, back: 12, shoulders: 9,  biceps: 8,  triceps: 9,  quads: 8,  hamstrings: 6, glutes: 6, calves: 6, core: 6 },
-      moderate: { chest: 12, back: 14, shoulders: 12, biceps: 10, triceps: 10, quads: 10, hamstrings: 8, glutes: 8, calves: 8, core: 6 },
-      low:      { chest: 14, back: 16, shoulders: 14, biceps: 12, triceps: 12, quads: 12, hamstrings: 10, glutes: 10, calves: 10, core: 6 },
-    };
-
-    // Each exercise: { name, role, primary muscle, secondary muscles, pattern, reps, sets, rest }
-    // role: "primary" (heaviest compound), "secondary" (compound but lighter), "isolation", "core"
-    // pattern: "horizontal_push", "vertical_push", "horizontal_pull", "vertical_pull",
-    //          "quad_dominant", "hip_dominant", "knee_iso", "single_joint", "core"
+    // Compact metadata library used by the prescription engine.
+    // Each entry has name, role, primary, secondary, pattern.
     const EX = {
-      // ── Pressing (Push)
-      bench_bb:        { name: "Barbell Bench Press",       role: "primary",   primary: "chest",     secondary: ["triceps", "shoulders"], pattern: "horizontal_push" },
-      bench_db:        { name: "Dumbbell Bench Press",      role: "secondary", primary: "chest",     secondary: ["triceps", "shoulders"], pattern: "horizontal_push" },
-      incline_db:      { name: "Incline Dumbbell Press",    role: "secondary", primary: "chest",     secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
-      incline_bb:      { name: "Incline Barbell Press",     role: "secondary", primary: "chest",     secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
-      dips_chest:      { name: "Dips (chest-focused)",      role: "secondary", primary: "chest",     secondary: ["triceps"],              pattern: "horizontal_push" },
-      pushup:          { name: "Push-ups",                  role: "secondary", primary: "chest",     secondary: ["triceps"],              pattern: "horizontal_push" },
-      cable_fly:       { name: "Cable Fly (mid)",           role: "isolation", primary: "chest",     secondary: [],                       pattern: "single_joint" },
-      pec_deck:        { name: "Pec Deck Machine",          role: "isolation", primary: "chest",     secondary: [],                       pattern: "single_joint" },
-      ohp_bb:          { name: "Overhead Press (barbell)",  role: "primary",   primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
-      ohp_db:          { name: "Overhead Press (dumbbell)", role: "secondary", primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
-      seated_db_press: { name: "Seated DB Press",           role: "secondary", primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
-      arnold:          { name: "Arnold Press",              role: "secondary", primary: "shoulders", secondary: ["triceps"],              pattern: "vertical_push" },
-      lat_raise_db:    { name: "Lateral Raise (DB)",        role: "isolation", primary: "shoulders", secondary: [],                       pattern: "single_joint" },
-      lat_raise_cable: { name: "Lateral Raise (cable)",     role: "isolation", primary: "shoulders", secondary: [],                       pattern: "single_joint" },
-      rear_delt_db:    { name: "Rear Delt Fly (DB)",        role: "isolation", primary: "shoulders", secondary: ["back"],                 pattern: "single_joint" },
-      face_pull:       { name: "Face Pull",                 role: "isolation", primary: "shoulders", secondary: ["back"],                 pattern: "single_joint" },
-
-      // ── Pulling
-      deadlift_bb:     { name: "Conventional Deadlift",     role: "primary",   primary: "back",      secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
-      pullup:          { name: "Pull-ups",                  role: "primary",   primary: "back",      secondary: ["biceps"],               pattern: "vertical_pull" },
-      chinup:          { name: "Chin-ups",                  role: "primary",   primary: "back",      secondary: ["biceps"],               pattern: "vertical_pull" },
-      lat_pulldown:    { name: "Lat Pulldown (wide)",       role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "vertical_pull" },
-      row_bb:          { name: "Barbell Row (overhand)",    role: "primary",   primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
-      row_db:          { name: "Single-arm DB Row",         role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
-      cable_row:       { name: "Seated Cable Row",          role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
-      t_bar_row:       { name: "T-Bar Row",                 role: "secondary", primary: "back",      secondary: ["biceps"],               pattern: "horizontal_pull" },
-
-      // ── Legs
-      squat_bb:        { name: "Back Squat",                role: "primary",   primary: "quads",     secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
-      front_squat:     { name: "Front Squat",               role: "primary",   primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
-      leg_press:       { name: "Leg Press",                 role: "secondary", primary: "quads",     secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
-      hack_squat:      { name: "Hack Squat",                role: "secondary", primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
-      bulgarian:       { name: "Bulgarian Split Squat",     role: "secondary", primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
-      lunges:          { name: "Walking Lunges",            role: "secondary", primary: "quads",     secondary: ["glutes"],               pattern: "quad_dominant" },
-      leg_ext:         { name: "Leg Extension",             role: "isolation", primary: "quads",     secondary: [],                       pattern: "knee_iso" },
-      rdl_bb:          { name: "Romanian Deadlift",         role: "primary",   primary: "hamstrings", secondary: ["glutes", "back"],      pattern: "hip_dominant" },
-      hip_thrust:      { name: "Hip Thrust",                role: "secondary", primary: "glutes",    secondary: ["hamstrings"],           pattern: "hip_dominant" },
-      leg_curl:        { name: "Leg Curl (lying)",          role: "isolation", primary: "hamstrings", secondary: [],                      pattern: "knee_iso" },
-      calf_raise_std:  { name: "Calf Raise (standing)",     role: "isolation", primary: "calves",    secondary: [],                       pattern: "single_joint" },
-
-      // ── Arms
-      curl_bb:         { name: "Barbell Curl",              role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
-      curl_db:         { name: "DB Curl (alternating)",     role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
-      hammer_curl:     { name: "Hammer Curl",               role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
-      incline_curl:    { name: "Incline DB Curl",           role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
-      preacher_curl:   { name: "Preacher Curl (machine)",   role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
-      cable_curl:      { name: "Cable Curl (rope)",         role: "isolation", primary: "biceps",    secondary: [],                       pattern: "single_joint" },
-      cgbp:            { name: "Close-grip Bench Press",    role: "secondary", primary: "triceps",   secondary: ["chest"],                pattern: "horizontal_push" },
-      skullcrushers:   { name: "Skullcrushers (EZ)",        role: "isolation", primary: "triceps",   secondary: [],                       pattern: "single_joint" },
-      pushdown_rope:   { name: "Tricep Pushdown (rope)",    role: "isolation", primary: "triceps",   secondary: [],                       pattern: "single_joint" },
-      oh_extension:    { name: "Overhead Cable Extension",  role: "isolation", primary: "triceps",   secondary: [],                       pattern: "single_joint" },
-      dips_tri:        { name: "Dips (tricep-focused)",     role: "secondary", primary: "triceps",   secondary: ["chest"],                pattern: "horizontal_push" },
-
-      // ── Core
-      plank:           { name: "Plank",                     role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
-      hanging_kr:      { name: "Hanging Knee Raise",        role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
-      hanging_lr:      { name: "Hanging Leg Raise",         role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
-      cable_crunch:    { name: "Cable Crunch",              role: "core",      primary: "core",      secondary: [],                       pattern: "core" },
+      bench_bb:              { name: "Barbell Bench Press", role: "primary", primary: "chest", secondary: ["triceps", "shoulders"], pattern: "horizontal_push" },
+      bench_db:              { name: "Dumbbell Bench Press", role: "secondary", primary: "chest", secondary: ["triceps", "shoulders"], pattern: "horizontal_push" },
+      incline_bb:            { name: "Incline Barbell Press", role: "primary", primary: "chest", secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
+      incline_db:            { name: "Incline Dumbbell Press", role: "secondary", primary: "chest", secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
+      decline_db:            { name: "Decline Dumbbell Press", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      close_grip_bp:         { name: "Close-grip Bench Press", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      floor_press_bb:        { name: "Floor Press (barbell)", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      dips_chest:            { name: "Dips (chest-focused)", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      pushup:                { name: "Push-ups", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      weighted_pushup:       { name: "Weighted Push-ups", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      machine_chest:         { name: "Machine Chest Press", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      hammer_chest:          { name: "Hammer Strength Press", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      smith_bench:           { name: "Smith Machine Bench Press", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      smith_incline:         { name: "Smith Incline Press", role: "secondary", primary: "chest", secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
+      machine_decline:       { name: "Machine Decline Press", role: "secondary", primary: "chest", secondary: ["triceps"], pattern: "horizontal_push" },
+      incline_machine:       { name: "Machine Incline Press", role: "secondary", primary: "chest", secondary: ["shoulders", "triceps"], pattern: "horizontal_push" },
+      landmine_press:        { name: "Landmine Press", role: "secondary", primary: "chest", secondary: ["shoulders"], pattern: "vertical_push" },
+      cable_fly:             { name: "Cable Fly (mid)", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      cable_fly_low:         { name: "Cable Fly (low to high)", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      cable_fly_high:        { name: "Cable Fly (high to low)", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      cable_crossover:       { name: "Cable Crossover", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      pec_deck:              { name: "Pec Deck Machine", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      db_fly:                { name: "Dumbbell Fly (flat)", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      incline_db_fly:        { name: "Incline Dumbbell Fly", role: "isolation", primary: "chest", secondary: [], pattern: "single_joint" },
+      ohp_bb:                { name: "Overhead Press (barbell)", role: "primary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      ohp_db:                { name: "Overhead Press (dumbbell)", role: "primary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      seated_db_press:       { name: "Seated DB Press", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      arnold:                { name: "Arnold Press", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      push_press:            { name: "Push Press", role: "primary", primary: "shoulders", secondary: ["triceps", "quads"], pattern: "vertical_push" },
+      machine_shoulder:      { name: "Machine Shoulder Press", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      hammer_ohp:            { name: "Hammer Strength OHP", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      smith_ohp:             { name: "Smith Machine OHP", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      z_press:               { name: "Z Press", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      bradford:              { name: "Bradford Press", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      pike_pushup:           { name: "Pike Push-ups", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      hspu:                  { name: "Handstand Push-ups", role: "secondary", primary: "shoulders", secondary: ["triceps"], pattern: "vertical_push" },
+      lat_raise_db:          { name: "Lateral Raise (DB)", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      lat_raise_cable:       { name: "Lateral Raise (cable)", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      lat_raise_mach:        { name: "Lateral Raise (machine)", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      leaning_lateral:       { name: "Leaning Lateral Raise", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      cable_y_raise:         { name: "Cable Y-Raise", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      front_raise_db:        { name: "Front Raise (DB)", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      front_raise_cab:       { name: "Front Raise (cable)", role: "isolation", primary: "shoulders", secondary: [], pattern: "single_joint" },
+      rear_delt_db:          { name: "Rear Delt Fly (DB)", role: "isolation", primary: "shoulders", secondary: ["back"], pattern: "single_joint" },
+      rear_delt_cable:       { name: "Rear Delt Fly (cable)", role: "isolation", primary: "shoulders", secondary: ["back"], pattern: "single_joint" },
+      reverse_pec_deck:      { name: "Reverse Pec Deck", role: "isolation", primary: "shoulders", secondary: ["back"], pattern: "single_joint" },
+      face_pull:             { name: "Face Pull", role: "isolation", primary: "shoulders", secondary: ["back"], pattern: "single_joint" },
+      deadlift_bb:           { name: "Conventional Deadlift", role: "primary", primary: "back", secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
+      sumo_dl:               { name: "Sumo Deadlift", role: "primary", primary: "back", secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
+      trap_bar_dl:           { name: "Trap Bar Deadlift", role: "primary", primary: "back", secondary: ["hamstrings", "glutes", "quads"], pattern: "hip_dominant" },
+      rack_pull:             { name: "Rack Pulls", role: "secondary", primary: "back", secondary: ["hamstrings"], pattern: "hip_dominant" },
+      snatch_grip_dl:        { name: "Snatch-grip Deadlift", role: "primary", primary: "back", secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
+      deficit_dl:            { name: "Deficit Deadlift", role: "primary", primary: "back", secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
+      pullup:                { name: "Pull-ups", role: "primary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      chinup:                { name: "Chin-ups", role: "primary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      wide_pullup:           { name: "Wide-grip Pull-ups", role: "primary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      neutral_pullup:        { name: "Neutral-grip Pull-ups", role: "primary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      weighted_pullup:       { name: "Weighted Pull-ups", role: "primary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      assisted_pullup:       { name: "Assisted Pull-ups", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      lat_pulldown:          { name: "Lat Pulldown (wide)", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      lat_pd_close:          { name: "Lat Pulldown (close)", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      lat_pd_neutral:        { name: "Lat Pulldown (neutral)", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      reverse_pulldown:      { name: "Reverse-grip Lat Pulldown", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      single_lat_pd:         { name: "Single-arm Lat Pulldown", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "vertical_pull" },
+      straight_arm_pd:       { name: "Straight-arm Pulldown", role: "isolation", primary: "back", secondary: [], pattern: "single_joint" },
+      row_bb:                { name: "Barbell Row (overhand)", role: "primary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      row_bb_under:          { name: "Barbell Row (underhand)", role: "primary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      pendlay_row:           { name: "Pendlay Row", role: "primary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      seal_row:              { name: "Seal Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      tbar_row:              { name: "T-Bar Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      cs_bb_row:             { name: "Chest-supported BB Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      row_db:                { name: "Single-arm DB Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      cs_db_row:             { name: "Chest-supported DB Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      meadows_row:           { name: "Meadows Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      two_arm_db_row:        { name: "Two-arm DB Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      cable_row:             { name: "Seated Cable Row (wide)", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      cable_row_close:       { name: "Seated Cable Row (close)", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      single_cable_row:      { name: "Single-arm Cable Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      inverted_row:          { name: "Inverted Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      hammer_row:            { name: "Hammer Strength Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      iso_row:               { name: "Iso-lateral Row", role: "secondary", primary: "back", secondary: ["biceps"], pattern: "horizontal_pull" },
+      db_pullover:           { name: "Dumbbell Pullover", role: "isolation", primary: "back", secondary: ["chest"], pattern: "single_joint" },
+      lat_pullover:          { name: "Lat Pullover Machine", role: "isolation", primary: "back", secondary: [], pattern: "single_joint" },
+      cable_pullover:        { name: "Cable Pullover", role: "isolation", primary: "back", secondary: [], pattern: "single_joint" },
+      hyperextension:        { name: "Hyperextension", role: "secondary", primary: "back", secondary: ["glutes", "hamstrings"], pattern: "hip_dominant" },
+      back_ext_45:           { name: "45° Back Extension", role: "secondary", primary: "back", secondary: ["glutes", "hamstrings"], pattern: "hip_dominant" },
+      good_morning:          { name: "Good Morning", role: "secondary", primary: "back", secondary: ["hamstrings", "glutes"], pattern: "hip_dominant" },
+      squat_bb:              { name: "Back Squat", role: "primary", primary: "quads", secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
+      front_squat:           { name: "Front Squat", role: "primary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      high_bar_squat:        { name: "High-bar Squat", role: "primary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      low_bar_squat:         { name: "Low-bar Squat", role: "primary", primary: "quads", secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
+      box_squat:             { name: "Box Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      pause_squat:           { name: "Pause Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      sb_squat:              { name: "Safety Bar Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      goblet_squat:          { name: "Goblet Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      hack_squat:            { name: "Hack Squat (machine)", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      pendulum_squat:        { name: "Pendulum Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      smith_squat:           { name: "Smith Machine Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      leg_press:             { name: "Leg Press", role: "secondary", primary: "quads", secondary: ["glutes", "hamstrings"], pattern: "quad_dominant" },
+      sl_leg_press:          { name: "Single-leg Leg Press", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      bulgarian:             { name: "Bulgarian Split Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      walking_lunge:         { name: "Walking Lunges", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      reverse_lunge:         { name: "Reverse Lunge", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      step_up:               { name: "Step-up", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      pistol_squat:          { name: "Pistol Squat", role: "secondary", primary: "quads", secondary: ["glutes"], pattern: "quad_dominant" },
+      sissy_squat:           { name: "Sissy Squat", role: "isolation", primary: "quads", secondary: [], pattern: "knee_iso" },
+      leg_ext:               { name: "Leg Extension", role: "isolation", primary: "quads", secondary: [], pattern: "knee_iso" },
+      sl_leg_ext:            { name: "Single-leg Extension", role: "isolation", primary: "quads", secondary: [], pattern: "knee_iso" },
+      rdl_bb:                { name: "Romanian Deadlift", role: "primary", primary: "hamstrings", secondary: ["glutes", "back"], pattern: "hip_dominant" },
+      stiff_leg_dl:          { name: "Stiff-leg Deadlift", role: "primary", primary: "hamstrings", secondary: ["glutes", "back"], pattern: "hip_dominant" },
+      sl_rdl:                { name: "Single-leg RDL (DB)", role: "secondary", primary: "hamstrings", secondary: ["glutes"], pattern: "hip_dominant" },
+      hip_thrust:            { name: "Hip Thrust (barbell)", role: "primary", primary: "glutes", secondary: ["hamstrings"], pattern: "hip_dominant" },
+      hip_thrust_mach:       { name: "Hip Thrust (machine)", role: "primary", primary: "glutes", secondary: ["hamstrings"], pattern: "hip_dominant" },
+      sl_hip_thrust:         { name: "Single-leg Hip Thrust", role: "secondary", primary: "glutes", secondary: ["hamstrings"], pattern: "hip_dominant" },
+      glute_bridge:          { name: "Glute Bridge", role: "secondary", primary: "glutes", secondary: ["hamstrings"], pattern: "hip_dominant" },
+      cable_kickback:        { name: "Cable Kickback", role: "isolation", primary: "glutes", secondary: [], pattern: "single_joint" },
+      machine_kickback:      { name: "Machine Kickback", role: "isolation", primary: "glutes", secondary: [], pattern: "single_joint" },
+      leg_curl:              { name: "Leg Curl (lying)", role: "isolation", primary: "hamstrings", secondary: [], pattern: "knee_iso" },
+      seated_leg_curl:       { name: "Leg Curl (seated)", role: "isolation", primary: "hamstrings", secondary: [], pattern: "knee_iso" },
+      nordic_curl:           { name: "Nordic Curl", role: "isolation", primary: "hamstrings", secondary: [], pattern: "knee_iso" },
+      ghr:                   { name: "Glute-ham Raise", role: "secondary", primary: "hamstrings", secondary: ["glutes"], pattern: "knee_iso" },
+      calf_raise_std:        { name: "Standing Calf Raise (BB)", role: "isolation", primary: "calves", secondary: [], pattern: "single_joint" },
+      calf_machine:          { name: "Calf Raise (machine)", role: "isolation", primary: "calves", secondary: [], pattern: "single_joint" },
+      seated_calf:           { name: "Seated Calf Raise", role: "isolation", primary: "calves", secondary: [], pattern: "single_joint" },
+      donkey_calf:           { name: "Donkey Calf Raise", role: "isolation", primary: "calves", secondary: [], pattern: "single_joint" },
+      leg_press_calf:        { name: "Leg Press Calf Raise", role: "isolation", primary: "calves", secondary: [], pattern: "single_joint" },
+      sl_calf_raise:         { name: "Single-leg Calf Raise", role: "isolation", primary: "calves", secondary: [], pattern: "single_joint" },
+      curl_bb:               { name: "Barbell Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      curl_ez:               { name: "EZ-Bar Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      curl_db:               { name: "DB Curl (alternating)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      hammer_curl:           { name: "Hammer Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      cb_hammer:             { name: "Cross-body Hammer Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      incline_curl:          { name: "Incline DB Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      spider_curl:           { name: "Spider Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      concentration:         { name: "Concentration Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      zottman:               { name: "Zottman Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      preacher_db:           { name: "Preacher Curl (DB)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      preacher_ez:           { name: "Preacher Curl (EZ-bar)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      preacher_machine:      { name: "Preacher Curl (machine)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      cable_curl:            { name: "Cable Curl (rope)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      cable_curl_bar:        { name: "Cable Curl (bar)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      single_cable_curl:     { name: "Single-arm Cable Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      high_cable_curl:       { name: "High Cable Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      reverse_curl:          { name: "Reverse Curl (EZ-bar)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      bb_21s:                { name: "21s (barbell)", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      drag_curl:             { name: "Drag Curl", role: "isolation", primary: "biceps", secondary: [], pattern: "single_joint" },
+      cgbp:                  { name: "Close-grip Bench Press", role: "secondary", primary: "triceps", secondary: ["chest"], pattern: "horizontal_push" },
+      jm_press:              { name: "JM Press", role: "secondary", primary: "triceps", secondary: ["chest"], pattern: "horizontal_push" },
+      dips_tri:              { name: "Tricep Dips (parallel)", role: "secondary", primary: "triceps", secondary: ["chest"], pattern: "horizontal_push" },
+      bench_dips:            { name: "Bench Dips", role: "secondary", primary: "triceps", secondary: [], pattern: "single_joint" },
+      skullcrushers_ez:      { name: "Skullcrushers (EZ)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      skullcrushers_db:      { name: "Skullcrushers (DB)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      decline_skull:         { name: "Decline Skullcrushers", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      tate_press:            { name: "Tate Press", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      pushdown_rope:         { name: "Tricep Pushdown (rope)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      pushdown_vbar:         { name: "Tricep Pushdown (V-bar)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      pushdown_str:          { name: "Tricep Pushdown (straight)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      reverse_pushdown:      { name: "Reverse-grip Pushdown", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      single_pushdown:       { name: "Single-arm Pushdown", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      oh_ext_rope:           { name: "Overhead Cable Ext (rope)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      single_oh_ext:         { name: "Single-arm OH Cable Ext", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      french_press:          { name: "French Press (seated)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      db_oh_ext:             { name: "Two-arm DB OH Ext", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      kickback_db:           { name: "Tricep Kickback (DB)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      kickback_cable:        { name: "Tricep Kickback (cable)", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      tri_machine:           { name: "Tricep Extension Machine", role: "isolation", primary: "triceps", secondary: [], pattern: "single_joint" },
+      plank:                 { name: "Plank", role: "core", primary: "core", secondary: [], pattern: "core" },
+      side_plank:            { name: "Side Plank", role: "core", primary: "core", secondary: [], pattern: "core" },
+      hanging_kr:            { name: "Hanging Knee Raise", role: "core", primary: "core", secondary: [], pattern: "core" },
+      hanging_lr:            { name: "Hanging Leg Raise", role: "core", primary: "core", secondary: [], pattern: "core" },
+      toes_to_bar:           { name: "Toes-to-Bar", role: "core", primary: "core", secondary: [], pattern: "core" },
+      cable_crunch:          { name: "Cable Crunch", role: "core", primary: "core", secondary: [], pattern: "core" },
+      ab_rollout:            { name: "Ab Wheel Rollout", role: "core", primary: "core", secondary: [], pattern: "core" },
+      hollow_hold:           { name: "Hollow Body Hold", role: "core", primary: "core", secondary: [], pattern: "core" },
+      dragon_flag:           { name: "Dragon Flag", role: "core", primary: "core", secondary: [], pattern: "core" },
+      dead_bug:              { name: "Dead Bug", role: "core", primary: "core", secondary: [], pattern: "core" },
+      pallof:                { name: "Pallof Press", role: "core", primary: "core", secondary: [], pattern: "core" },
+      woodchop:              { name: "Cable Woodchop", role: "core", primary: "core", secondary: [], pattern: "core" },
+      russian_twist:         { name: "Russian Twist", role: "core", primary: "core", secondary: [], pattern: "core" },
+      shrugs_bb:             { name: "Shrugs (barbell)", role: "isolation", primary: "back", secondary: [], pattern: "single_joint" },
+      shrugs_db:             { name: "Shrugs (dumbbell)", role: "isolation", primary: "back", secondary: [], pattern: "single_joint" },
     };
 
-    // Day templates: each entry specifies the role + ideal pattern coverage.
-    // The system picks specific exercises to satisfy these slots while balancing patterns.
+    // Day templates: each muscle-group day has slots specifying movement pattern + role.
+    // PPL Push/Pull/Legs each have A and B variants — repeat sessions pick from B
+    // instead of A so Monday's Push and Thursday's Push hit DIFFERENT primary lifts.
+    // BRO splits only need A (each muscle gets one day per week).
     const DAY_TEMPLATES = {
       PPL: {
-        Push: [
-          // Required: 1 horizontal press primary, 1 vertical press, secondary horizontal, isolations
-          { role: "primary",   muscle: "chest",     pattern: "horizontal_push",  options: ["bench_bb", "incline_bb"] },
-          { role: "secondary", muscle: "chest",     pattern: "horizontal_push",  options: ["incline_db", "bench_db", "dips_chest"] },
-          { role: "secondary", muscle: "shoulders", pattern: "vertical_push",    options: ["ohp_db", "seated_db_press", "ohp_bb"] },
-          { role: "isolation", muscle: "chest",     pattern: "single_joint",     options: ["cable_fly", "pec_deck"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint",     options: ["lat_raise_db", "lat_raise_cable"] },
-          { role: "isolation", muscle: "triceps",   pattern: "single_joint",     options: ["pushdown_rope", "oh_extension", "skullcrushers"] },
-          { role: "isolation", muscle: "triceps",   pattern: "single_joint",     options: ["skullcrushers", "oh_extension", "pushdown_rope"] },
-        ],
-        Pull: [
-          { role: "primary",   muscle: "back",      pattern: "vertical_pull",    options: ["pullup", "chinup"] },
-          { role: "primary",   muscle: "back",      pattern: "horizontal_pull",  options: ["row_bb", "t_bar_row"] },
-          { role: "secondary", muscle: "back",      pattern: "vertical_pull",    options: ["lat_pulldown"] },
-          { role: "secondary", muscle: "back",      pattern: "horizontal_pull",  options: ["cable_row", "row_db"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint",     options: ["face_pull", "rear_delt_db"] },
-          { role: "isolation", muscle: "biceps",    pattern: "single_joint",     options: ["curl_bb", "incline_curl"] },
-          { role: "isolation", muscle: "biceps",    pattern: "single_joint",     options: ["hammer_curl", "cable_curl"] },
-        ],
-        Legs: [
-          { role: "primary",   muscle: "quads",      pattern: "quad_dominant",   options: ["squat_bb", "front_squat"] },
-          { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",    options: ["rdl_bb"] },
-          { role: "secondary", muscle: "quads",      pattern: "quad_dominant",   options: ["leg_press", "hack_squat", "bulgarian"] },
-          { role: "isolation", muscle: "hamstrings", pattern: "knee_iso",        options: ["leg_curl"] },
-          { role: "isolation", muscle: "quads",      pattern: "knee_iso",        options: ["leg_ext"] },
-          { role: "isolation", muscle: "calves",     pattern: "single_joint",    options: ["calf_raise_std"] },
-          { role: "core",      muscle: "core",       pattern: "core",            options: ["plank", "hanging_kr"] },
-        ],
+        Push: {
+          // Push A — bench-press focused (horizontal compound primary)
+          A: [
+            { role: "primary",   muscle: "chest",     pattern: "horizontal_push", options: ["bench_bb", "bench_db", "machine_chest", "smith_bench"] },
+            { role: "secondary", muscle: "chest",     pattern: "horizontal_push", options: ["incline_db", "incline_bb", "incline_machine", "smith_incline"] },
+            { role: "primary",   muscle: "shoulders", pattern: "vertical_push",   options: ["seated_db_press", "machine_shoulder", "ohp_db", "hammer_ohp"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["lat_raise_db", "lat_raise_cable", "lat_raise_mach", "leaning_lateral"] },
+            { role: "isolation", muscle: "chest",     pattern: "single_joint",    options: ["cable_fly", "pec_deck", "cable_crossover", "incline_db_fly"] },
+            { role: "isolation", muscle: "triceps",   pattern: "single_joint",    options: ["pushdown_rope", "pushdown_vbar", "pushdown_str", "single_pushdown"] },
+            { role: "isolation", muscle: "triceps",   pattern: "single_joint",    options: ["skullcrushers_ez", "oh_ext_rope", "tate_press", "kickback_cable"] },
+          ],
+          // Push B — overhead-press focused (vertical compound primary)
+          B: [
+            { role: "primary",   muscle: "shoulders", pattern: "vertical_push",   options: ["ohp_bb", "ohp_db", "push_press", "smith_ohp"] },
+            { role: "secondary", muscle: "chest",     pattern: "horizontal_push", options: ["incline_bb", "incline_db", "smith_incline", "incline_machine"] },
+            { role: "secondary", muscle: "chest",     pattern: "horizontal_push", options: ["dips_chest", "decline_db", "machine_decline", "weighted_pushup"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["lat_raise_cable", "lat_raise_mach", "leaning_lateral", "cable_y_raise"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["rear_delt_db", "reverse_pec_deck", "face_pull", "rear_delt_cable"] },
+            { role: "isolation", muscle: "triceps",   pattern: "single_joint",    options: ["oh_ext_rope", "single_oh_ext", "french_press", "db_oh_ext"] },
+            { role: "secondary", muscle: "triceps",   pattern: "horizontal_push", options: ["cgbp", "jm_press", "dips_tri", "bench_dips"] },
+          ],
+        },
+        Pull: {
+          // Pull A — deadlift / heavy row focused
+          A: [
+            { role: "primary",   muscle: "back",      pattern: "hip_dominant",    options: ["deadlift_bb", "trap_bar_dl", "rack_pull", "sumo_dl"] },
+            { role: "primary",   muscle: "back",      pattern: "horizontal_pull", options: ["row_bb", "pendlay_row", "tbar_row", "cs_bb_row"] },
+            { role: "secondary", muscle: "back",      pattern: "vertical_pull",   options: ["lat_pulldown", "lat_pd_close", "lat_pd_neutral", "reverse_pulldown"] },
+            { role: "secondary", muscle: "back",      pattern: "horizontal_pull", options: ["cable_row", "cable_row_close", "cs_db_row", "row_db"] },
+            { role: "isolation", muscle: "back",      pattern: "single_joint",    options: ["straight_arm_pd", "lat_pullover", "db_pullover", "cable_pullover"] },
+            { role: "isolation", muscle: "biceps",    pattern: "single_joint",    options: ["curl_bb", "curl_ez", "preacher_ez", "preacher_machine"] },
+            { role: "isolation", muscle: "biceps",    pattern: "single_joint",    options: ["hammer_curl", "incline_curl", "spider_curl", "cb_hammer"] },
+          ],
+          // Pull B — pull-up / vertical pulling focused
+          B: [
+            { role: "primary",   muscle: "back",      pattern: "vertical_pull",   options: ["pullup", "weighted_pullup", "neutral_pullup", "lat_pulldown"] },
+            { role: "secondary", muscle: "back",      pattern: "horizontal_pull", options: ["row_db", "cs_db_row", "meadows_row", "single_cable_row"] },
+            { role: "secondary", muscle: "back",      pattern: "vertical_pull",   options: ["chinup", "wide_pullup", "lat_pd_close", "single_lat_pd"] },
+            { role: "secondary", muscle: "back",      pattern: "horizontal_pull", options: ["seal_row", "iso_row", "hammer_row", "inverted_row"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["face_pull", "rear_delt_cable", "reverse_pec_deck", "rear_delt_db"] },
+            { role: "isolation", muscle: "biceps",    pattern: "single_joint",    options: ["preacher_db", "concentration", "cable_curl", "single_cable_curl"] },
+            { role: "isolation", muscle: "biceps",    pattern: "single_joint",    options: ["zottman", "high_cable_curl", "cable_curl_bar", "bb_21s"] },
+          ],
+        },
+        Legs: {
+          // Legs A — squat focused (quad-dominant)
+          A: [
+            { role: "primary",   muscle: "quads",      pattern: "quad_dominant", options: ["squat_bb", "high_bar_squat", "front_squat", "low_bar_squat"] },
+            { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["leg_press", "hack_squat", "pendulum_squat", "smith_squat"] },
+            { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["bulgarian", "walking_lunge", "step_up", "reverse_lunge"] },
+            { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",  options: ["rdl_bb", "stiff_leg_dl", "good_morning", "sl_rdl"] },
+            { role: "isolation", muscle: "quads",      pattern: "knee_iso",      options: ["leg_ext", "sl_leg_ext", "sissy_squat"] },
+            { role: "isolation", muscle: "calves",     pattern: "single_joint",  options: ["calf_raise_std", "calf_machine", "leg_press_calf", "donkey_calf"] },
+            { role: "core",      muscle: "core",       pattern: "core",          options: ["plank", "hanging_lr", "ab_rollout", "hollow_hold"] },
+          ],
+          // Legs B — RDL / posterior chain focused
+          B: [
+            { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",  options: ["rdl_bb", "stiff_leg_dl", "sl_rdl", "good_morning"] },
+            { role: "primary",   muscle: "glutes",     pattern: "hip_dominant",  options: ["hip_thrust", "hip_thrust_mach", "sl_hip_thrust", "glute_bridge"] },
+            { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["front_squat", "goblet_squat", "smith_squat", "sl_leg_press"] },
+            { role: "isolation", muscle: "hamstrings", pattern: "knee_iso",      options: ["leg_curl", "seated_leg_curl", "nordic_curl", "ghr"] },
+            { role: "isolation", muscle: "glutes",     pattern: "single_joint",  options: ["cable_kickback", "machine_kickback"] },
+            { role: "isolation", muscle: "calves",     pattern: "single_joint",  options: ["seated_calf", "donkey_calf", "sl_calf_raise", "calf_machine"] },
+            { role: "core",      muscle: "core",       pattern: "core",          options: ["cable_crunch", "hanging_kr", "pallof", "woodchop"] },
+          ],
+        },
       },
       BRO: {
-        Chest: [
-          { role: "primary",   muscle: "chest", pattern: "horizontal_push", options: ["bench_bb"] },
-          { role: "secondary", muscle: "chest", pattern: "horizontal_push", options: ["incline_db", "incline_bb"] },
-          { role: "secondary", muscle: "chest", pattern: "horizontal_push", options: ["dips_chest", "bench_db"] },
-          { role: "isolation", muscle: "chest", pattern: "single_joint",    options: ["cable_fly", "pec_deck"] },
-          { role: "isolation", muscle: "chest", pattern: "single_joint",    options: ["pec_deck", "cable_fly"] },
-          { role: "secondary", muscle: "chest", pattern: "horizontal_push", options: ["pushup"] },
-        ],
-        Back: [
-          { role: "primary",   muscle: "back", pattern: "hip_dominant",    options: ["deadlift_bb"] },
-          { role: "primary",   muscle: "back", pattern: "vertical_pull",   options: ["pullup", "chinup"] },
-          { role: "primary",   muscle: "back", pattern: "horizontal_pull", options: ["row_bb", "t_bar_row"] },
-          { role: "secondary", muscle: "back", pattern: "vertical_pull",   options: ["lat_pulldown"] },
-          { role: "secondary", muscle: "back", pattern: "horizontal_pull", options: ["cable_row", "row_db"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint", options: ["face_pull", "rear_delt_db"] },
-        ],
-        Shoulders: [
-          { role: "primary",   muscle: "shoulders", pattern: "vertical_push", options: ["ohp_bb", "seated_db_press"] },
-          { role: "secondary", muscle: "shoulders", pattern: "vertical_push", options: ["arnold", "ohp_db"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["lat_raise_db"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["lat_raise_cable"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["rear_delt_db"] },
-          { role: "isolation", muscle: "shoulders", pattern: "single_joint",  options: ["face_pull"] },
-        ],
-        Legs: [
-          { role: "primary",   muscle: "quads",      pattern: "quad_dominant", options: ["squat_bb", "front_squat"] },
-          { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",  options: ["rdl_bb"] },
-          { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["leg_press", "hack_squat"] },
-          { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["bulgarian", "lunges"] },
-          { role: "isolation", muscle: "hamstrings", pattern: "knee_iso",      options: ["leg_curl"] },
-          { role: "isolation", muscle: "quads",      pattern: "knee_iso",      options: ["leg_ext"] },
-          { role: "isolation", muscle: "calves",     pattern: "single_joint",  options: ["calf_raise_std"] },
-          { role: "core",      muscle: "core",       pattern: "core",          options: ["plank", "hanging_kr"] },
-        ],
-        Arms: [
-          { role: "primary",   muscle: "biceps",  pattern: "single_joint",   options: ["curl_bb"] },
-          { role: "secondary", muscle: "biceps",  pattern: "single_joint",   options: ["incline_curl", "preacher_curl"] },
-          { role: "isolation", muscle: "biceps",  pattern: "single_joint",   options: ["hammer_curl"] },
-          { role: "isolation", muscle: "biceps",  pattern: "single_joint",   options: ["cable_curl"] },
-          { role: "secondary", muscle: "triceps", pattern: "horizontal_push", options: ["cgbp", "dips_tri"] },
-          { role: "isolation", muscle: "triceps", pattern: "single_joint",    options: ["skullcrushers"] },
-          { role: "isolation", muscle: "triceps", pattern: "single_joint",    options: ["pushdown_rope"] },
-          { role: "isolation", muscle: "triceps", pattern: "single_joint",    options: ["oh_extension"] },
-        ],
+        // BRO splits each muscle gets its own day, so only A is needed.
+        Chest: {
+          A: [
+            { role: "primary",   muscle: "chest",     pattern: "horizontal_push", options: ["bench_bb", "incline_bb", "bench_db", "machine_chest"] },
+            { role: "secondary", muscle: "chest",     pattern: "horizontal_push", options: ["incline_db", "decline_db", "smith_incline", "weighted_pushup"] },
+            { role: "secondary", muscle: "chest",     pattern: "horizontal_push", options: ["dips_chest", "machine_decline", "smith_bench", "hammer_chest"] },
+            { role: "isolation", muscle: "chest",     pattern: "single_joint",    options: ["cable_fly", "cable_fly_low", "cable_fly_high", "cable_crossover"] },
+            { role: "isolation", muscle: "chest",     pattern: "single_joint",    options: ["pec_deck", "incline_db_fly", "db_fly"] },
+            { role: "secondary", muscle: "shoulders", pattern: "vertical_push",   options: ["seated_db_press", "ohp_db", "machine_shoulder"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["lat_raise_db", "lat_raise_cable", "front_raise_db"] },
+          ],
+        },
+        Back: {
+          A: [
+            { role: "primary",   muscle: "back",      pattern: "vertical_pull",   options: ["pullup", "weighted_pullup", "lat_pulldown", "neutral_pullup"] },
+            { role: "primary",   muscle: "back",      pattern: "horizontal_pull", options: ["row_bb", "pendlay_row", "tbar_row", "cs_bb_row"] },
+            { role: "secondary", muscle: "back",      pattern: "vertical_pull",   options: ["lat_pd_close", "lat_pd_neutral", "reverse_pulldown", "single_lat_pd"] },
+            { role: "secondary", muscle: "back",      pattern: "horizontal_pull", options: ["cable_row", "row_db", "meadows_row", "iso_row"] },
+            { role: "isolation", muscle: "back",      pattern: "single_joint",    options: ["straight_arm_pd", "lat_pullover", "db_pullover"] },
+            { role: "isolation", muscle: "back",      pattern: "single_joint",    options: ["face_pull", "rear_delt_cable", "shrugs_bb", "shrugs_db"] },
+            { role: "secondary", muscle: "back",      pattern: "hip_dominant",    options: ["rack_pull", "good_morning", "hyperextension", "back_ext_45"] },
+          ],
+        },
+        Shoulders: {
+          A: [
+            { role: "primary",   muscle: "shoulders", pattern: "vertical_push",   options: ["ohp_bb", "ohp_db", "push_press", "seated_db_press"] },
+            { role: "secondary", muscle: "shoulders", pattern: "vertical_push",   options: ["arnold", "machine_shoulder", "smith_ohp", "z_press"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["lat_raise_db", "lat_raise_cable", "lat_raise_mach", "leaning_lateral"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["cable_y_raise", "front_raise_db", "front_raise_cab"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["rear_delt_db", "reverse_pec_deck", "face_pull"] },
+            { role: "isolation", muscle: "shoulders", pattern: "single_joint",    options: ["rear_delt_cable", "cable_y_raise"] },
+            { role: "isolation", muscle: "back",      pattern: "single_joint",    options: ["shrugs_bb", "shrugs_db"] },
+          ],
+        },
+        Legs: {
+          A: [
+            { role: "primary",   muscle: "quads",      pattern: "quad_dominant", options: ["squat_bb", "front_squat", "high_bar_squat"] },
+            { role: "primary",   muscle: "hamstrings", pattern: "hip_dominant",  options: ["rdl_bb", "stiff_leg_dl"] },
+            { role: "secondary", muscle: "quads",      pattern: "quad_dominant", options: ["leg_press", "hack_squat", "bulgarian", "walking_lunge"] },
+            { role: "primary",   muscle: "glutes",     pattern: "hip_dominant",  options: ["hip_thrust", "hip_thrust_mach", "sl_hip_thrust"] },
+            { role: "isolation", muscle: "quads",      pattern: "knee_iso",      options: ["leg_ext", "sissy_squat"] },
+            { role: "isolation", muscle: "hamstrings", pattern: "knee_iso",      options: ["leg_curl", "seated_leg_curl", "nordic_curl"] },
+            { role: "isolation", muscle: "calves",     pattern: "single_joint",  options: ["calf_raise_std", "seated_calf", "leg_press_calf"] },
+            { role: "core",      muscle: "core",       pattern: "core",          options: ["plank", "hanging_lr", "cable_crunch"] },
+          ],
+        },
+        Arms: {
+          A: [
+            { role: "primary",   muscle: "biceps",  pattern: "single_joint",     options: ["curl_bb", "curl_ez", "preacher_ez", "incline_curl"] },
+            { role: "secondary", muscle: "triceps", pattern: "horizontal_push",  options: ["cgbp", "dips_tri", "jm_press"] },
+            { role: "isolation", muscle: "biceps",  pattern: "single_joint",     options: ["hammer_curl", "spider_curl", "concentration", "cb_hammer"] },
+            { role: "isolation", muscle: "triceps", pattern: "single_joint",     options: ["skullcrushers_ez", "skullcrushers_db", "decline_skull", "tate_press"] },
+            { role: "isolation", muscle: "biceps",  pattern: "single_joint",     options: ["cable_curl", "cable_curl_bar", "single_cable_curl", "high_cable_curl"] },
+            { role: "isolation", muscle: "triceps", pattern: "single_joint",     options: ["pushdown_rope", "pushdown_vbar", "single_pushdown", "reverse_pushdown"] },
+            { role: "isolation", muscle: "triceps", pattern: "single_joint",     options: ["oh_ext_rope", "single_oh_ext", "french_press"] },
+          ],
+        },
       },
     };
 
-    // Sets/reps/rest for each exercise role, scaled by tier.
-    // Tuned so total weekly volume per muscle group stays within MEV-MRV across the full week.
+    // Set/rep/rest prescriptions by role + tier.
+    // Higher tier (faster fat loss) = slightly more sets per movement,
+    // while keeping reps in the hypertrophy range.
     function setsRepsRestFor(role, tier) {
-      const profiles = {
-        high: { // 6 lift days/week — keep per-exercise volume LOW so weekly stays in MAV
-          primary:   { sets: 3, reps: "6-8",   rest: 150 },
-          secondary: { sets: 3, reps: "8-12",  rest: 90  },
-          isolation: { sets: 2, reps: "12-15", rest: 60  },
-          core:      { sets: 3, reps: "30-60s", rest: 45  },
-        },
-        moderate: { // 5 lift days/week — moderate per-exercise
-          primary:   { sets: 4, reps: "5-8",   rest: 180 },
-          secondary: { sets: 3, reps: "6-10",  rest: 120 },
-          isolation: { sets: 2, reps: "10-15", rest: 75  },
-          core:      { sets: 3, reps: "30-60s", rest: 45  },
-        },
-        low: { // 3 lift days/week — push per-exercise volume up to hit MEV
-          primary:   { sets: 5, reps: "4-6",   rest: 240 },
-          secondary: { sets: 4, reps: "6-8",   rest: 150 },
-          isolation: { sets: 4, reps: "8-12",  rest: 90  },
-          core:      { sets: 3, reps: "30-60s", rest: 45  },
-        },
-      };
-      return profiles[tier]?.[role] || profiles.moderate.isolation;
+      const sets = role === "primary"
+        ? (tier === "high" ? 4 : tier === "moderate" ? 4 : 5)
+        : role === "secondary"
+        ? (tier === "high" ? 4 : 3)
+        : role === "core"
+        ? 3
+        : (tier === "high" ? 4 : 3);
+      const reps = role === "primary"
+        ? (tier === "low" ? "5-8" : "6-10")
+        : role === "secondary"
+        ? "8-12"
+        : role === "core"
+        ? "30-60s"
+        : "10-15";
+      const rest = role === "primary"
+        ? (tier === "low" ? 180 : 150)
+        : role === "secondary"
+        ? 90
+        : 60;
+      return { sets, reps, rest };
     }
 
-    // Build the day's prescription using the template + tier.
-    // Returns array of exercise objects with sets/reps/rest/role/muscle metadata.
-    function getDayPrescription(splitType, day, tier) {
-      const slots = DAY_TEMPLATES[splitType]?.[day] || [];
+    // Smart exercise selection: avoids picking the same option as the previous N
+    // workouts of this type, so repeat day-types within a week and across weeks
+    // give you variety. Falls back to the first option if all have been used.
+    function pickExerciseFromSlot(slot, recentNames) {
+      if (!slot.options?.length) return null;
+      for (const opt of slot.options) {
+        const ex = EX[opt];
+        if (!ex) continue;
+        if (!recentNames.has(ex.name)) return opt;
+      }
+      return slot.options[0]; // fallback: all options used recently
+    }
 
-      // Trim slot count by tier — high pace gets more exercises, low pace fewer (since longer rest = longer session)
+    // Determines whether today is the A or B occurrence of this dayType in the
+    // user's weekly schedule. PPL high-tier has Push twice — Mon=A, Thu=B.
+    // BRO splits hit each muscle once per week → always A.
+    function getVariantForDayInSchedule(schedule, dayType, dayOfWeek) {
+      const occurrences = schedule
+        .map((d, i) => (d === dayType ? i : -1))
+        .filter((i) => i !== -1);
+      const idx = occurrences.indexOf(dayOfWeek);
+      if (idx === -1 || idx === 0) return "A";
+      return idx === 1 ? "B" : "A"; // 3rd+ occurrence wraps to A
+    }
+
+    function getDayPrescription(splitType, day, tier, variant = "A", workouts = []) {
+      const dayDef = DAY_TEMPLATES[splitType]?.[day];
+      if (!dayDef) return [];
+      // Use requested variant if it exists, otherwise fall back to A
+      const slots = dayDef[variant] || dayDef.A || [];
+
+      // Trim slot count by tier — high pace gets more exercises, low fewer
       const maxSlots = tier === "high" ? 8 : tier === "moderate" ? 7 : 6;
       const trimmed = slots.slice(0, maxSlots);
 
-      // For each slot, pick the FIRST option (which is the gold-standard choice).
-      // The user can swap via the picker mid-workout if they don't have the equipment.
+      // Build a Set of exercise names used in recent workouts (last 6 sessions)
+      // so we can rotate to fresh options when possible.
+      const recentNames = new Set();
+      workouts.slice(-6).forEach((w) => {
+        w.exercises?.forEach((e) => recentNames.add(e.name));
+      });
+
       return trimmed.map((slot) => {
-        const exKey = slot.options[0];
+        const exKey = pickExerciseFromSlot(slot, recentNames);
         const ex = EX[exKey];
+        if (!ex) return null;
         const cfg = setsRepsRestFor(slot.role, tier);
         return {
           name: ex.name,
@@ -905,16 +1218,41 @@
           reps: cfg.reps,
           rest: cfg.rest,
         };
-      });
+      }).filter(Boolean);
+    }
+
+    // Helper: figure out the user's weekly schedule for the current tier so
+    // callers can derive the A/B variant for "today" without duplicating logic.
+    function getUserSchedule(profile) {
+      const splitType = profile.splitType || "PPL";
+      const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+      const weeklyTarget = totalLoss / (profile.durationDays / 7);
+      const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
+      const plans = {
+        PPL: {
+          high:     ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"],
+          moderate: ["Push", "Pull", "Legs", "Rest", "Push", "Pull", "Cardio"],
+          low:      ["Push", "Cardio", "Pull", "Rest", "Legs", "Cardio", "Rest"],
+        },
+        BRO: {
+          high:     ["Chest", "Back", "Shoulders", "Legs", "Arms", "Cardio", "Rest"],
+          moderate: ["Chest", "Back", "Shoulders", "Rest", "Legs", "Arms", "Cardio"],
+          low:      ["Chest", "Back", "Cardio", "Legs", "Rest", "Arms", "Rest"],
+        },
+      };
+      return { splitType, tier, schedule: plans[splitType][tier] };
     }
 
     // Calculate total weekly sets per muscle group across the user's full week.
     // Counts primary muscle as 1 set; secondary muscles count as 0.5 sets (per Schoenfeld's "fractional volume").
     function calculateWeeklyVolume(splitType, tier, weekPlan) {
       const totals = {};
+      const seenSoFar = {};
       weekPlan.forEach((dayType) => {
         if (dayType === "Rest" || dayType === "Cardio") return;
-        const rx = getDayPrescription(splitType, dayType, tier);
+        seenSoFar[dayType] = (seenSoFar[dayType] || 0) + 1;
+        const variant = seenSoFar[dayType] === 1 ? "A" : "B";
+        const rx = getDayPrescription(splitType, dayType, tier, variant);
         rx.forEach((ex) => {
           totals[ex.muscle] = (totals[ex.muscle] || 0) + ex.sets;
           ex.secondaryMuscles?.forEach((m) => {
@@ -2103,10 +2441,12 @@
       const today = todayKey();
       const alreadyDone = workouts.find((w) => w.date === today && w.day === todayType);
 
+      // Variant for today (A or B) based on which occurrence in the week this is
+      const todayVariant = getVariantForDayInSchedule(plans[splitType][tier], todayType, dayOfWeek);
+
       // If today is already done OR today is a rest day, look ahead to the next *lifting* session.
       // We scan up to 7 days ahead to find one.
       const nextLift = useMemo(() => {
-        // Don't bother computing if we have a fresh lifting day to do today
         if (isLifting && !alreadyDone) return null;
         for (let offset = 1; offset <= 7; offset++) {
           const futureDow = (dayOfWeek + offset) % 7;
@@ -2114,20 +2454,23 @@
           if (futureType !== "Rest" && futureType !== "Cardio") {
             const futureDate = new Date();
             futureDate.setDate(futureDate.getDate() + offset);
+            const futureVariant = getVariantForDayInSchedule(plans[splitType][tier], futureType, futureDow);
             return {
               type: futureType,
               dayLabel: offset === 1 ? "Tomorrow" : futureDate.toLocaleDateString("en-US", { weekday: "long" }),
-              prescription: getDayPrescription(splitType, futureType, tier),
+              prescription: getDayPrescription(splitType, futureType, tier, futureVariant, workouts),
+              variant: futureVariant,
             };
           }
         }
         return null;
-      }, [dayOfWeek, splitType, tier, isLifting, alreadyDone]);
+      }, [dayOfWeek, splitType, tier, isLifting, alreadyDone, workouts]);
 
       // If today is done and we have a next session, switch the card to preview it
       const showNextSession = alreadyDone && nextLift;
       const displayType = showNextSession ? nextLift.type : todayType;
-      const displayPrescription = showNextSession ? nextLift.prescription : (isLifting ? getDayPrescription(splitType, todayType, tier) : []);
+      const displayVariant = showNextSession ? nextLift.variant : todayVariant;
+      const displayPrescription = showNextSession ? nextLift.prescription : (isLifting ? getDayPrescription(splitType, todayType, tier, todayVariant, workouts) : []);
       // alias used downstream so we can render either today's or tomorrow's data with one block of JSX
       const prescription = displayPrescription;
 
@@ -2879,6 +3222,7 @@
     function ExercisePickerModal({ availableExercises, currentNames, onPick, onClose }) {
       const [search, setSearch] = useState("");
       const [eqFilter, setEqFilter] = useState("all");
+      const [lvlFilter, setLvlFilter] = useState("all"); // all | 1 | 2 | 3
 
       const equipmentTypes = useMemo(() => {
         const set = new Set(availableExercises.map((e) => e.eq));
@@ -2888,6 +3232,7 @@
       const filtered = availableExercises.filter((ex) => {
         if (currentNames.includes(ex.name)) return false;
         if (eqFilter !== "all" && ex.eq !== eqFilter) return false;
+        if (lvlFilter !== "all" && ex.lvl !== lvlFilter) return false;
         if (search && !ex.name.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
       });
@@ -2902,6 +3247,7 @@
             className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:border-lime-500 outline-none mb-3"
           />
 
+          <div className="text-[9px] text-zinc-600 uppercase tracking-wider font-bold mb-1.5 px-1">Equipment</div>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2 mb-2">
             {equipmentTypes.map((eq) => (
               <button key={eq} onClick={() => setEqFilter(eq)}
@@ -2911,6 +3257,25 @@
                     : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600"
                 }`}>
                 {eq === "all" ? "All" : EQ_LABEL[eq]}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-[9px] text-zinc-600 uppercase tracking-wider font-bold mb-1.5 px-1">Level</div>
+          <div className="flex gap-1.5 mb-3">
+            {[
+              { v: "all", label: "All" },
+              { v: 1, label: "Beginner" },
+              { v: 2, label: "Intermediate" },
+              { v: 3, label: "Advanced" },
+            ].map((opt) => (
+              <button key={String(opt.v)} onClick={() => setLvlFilter(opt.v)}
+                className={`flex-1 px-2 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap border transition ${
+                  lvlFilter === opt.v
+                    ? "bg-lime-400 text-zinc-900 border-lime-400"
+                    : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600"
+                }`}>
+                {opt.label}
               </button>
             ))}
           </div>
@@ -3016,7 +3381,11 @@
         const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
         const weeklyTarget = totalLoss / (profile.durationDays / 7);
         const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
-        const prescription = getDayPrescription(splitType, day, tier);
+        // Determine A/B variant by counting how many times this day type was already done this week
+        const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        const doneThisWeek = workouts.filter((w) => w.day === day && new Date(w.date) >= weekStart).length;
+        const variant = doneThisWeek === 0 ? "A" : doneThisWeek === 1 ? "B" : "A";
+        const prescription = getDayPrescription(splitType, day, tier, variant, workouts);
 
         // Map prescription to actual exercise objects + initial set rows
         const picked = prescription
@@ -3144,7 +3513,7 @@
               const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
               const weeklyTarget = totalLoss / (profile.durationDays / 7);
               const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
-              const dayPrescription = getDayPrescription(splitType, day, tier);
+              const dayPrescription = getDayPrescription(splitType, day, tier, "A", workouts);
               const estBurn = dayPrescription.length > 0
                 ? estimateBurnFromPrescription(dayPrescription, profile.weight)
                 : estimateBurnForDay(exList.length, profile.weight);
