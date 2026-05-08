@@ -2103,27 +2103,55 @@
       const today = todayKey();
       const alreadyDone = workouts.find((w) => w.date === today && w.day === todayType);
 
-      // Get the prescription if it's a lifting day
-      const prescription = isLifting ? getDayPrescription(splitType, todayType, tier) : [];
+      // If today is already done OR today is a rest day, look ahead to the next *lifting* session.
+      // We scan up to 7 days ahead to find one.
+      const nextLift = useMemo(() => {
+        // Don't bother computing if we have a fresh lifting day to do today
+        if (isLifting && !alreadyDone) return null;
+        for (let offset = 1; offset <= 7; offset++) {
+          const futureDow = (dayOfWeek + offset) % 7;
+          const futureType = plans[splitType][tier][futureDow];
+          if (futureType !== "Rest" && futureType !== "Cardio") {
+            const futureDate = new Date();
+            futureDate.setDate(futureDate.getDate() + offset);
+            return {
+              type: futureType,
+              dayLabel: offset === 1 ? "Tomorrow" : futureDate.toLocaleDateString("en-US", { weekday: "long" }),
+              prescription: getDayPrescription(splitType, futureType, tier),
+            };
+          }
+        }
+        return null;
+      }, [dayOfWeek, splitType, tier, isLifting, alreadyDone]);
+
+      // If today is done and we have a next session, switch the card to preview it
+      const showNextSession = alreadyDone && nextLift;
+      const displayType = showNextSession ? nextLift.type : todayType;
+      const displayPrescription = showNextSession ? nextLift.prescription : (isLifting ? getDayPrescription(splitType, todayType, tier) : []);
+      // alias used downstream so we can render either today's or tomorrow's data with one block of JSX
+      const prescription = displayPrescription;
 
       const [expanded, setExpanded] = useState(false);
 
       // Rest / cardio cards get a simpler look
-      if (todayType === "Rest") {
+      if (todayType === "Rest" && !showNextSession) {
         return (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center shrink-0">
               <Heart className="w-4 h-4 text-zinc-500" />
             </div>
-            <div>
+            <div className="flex-1">
               <div className="text-zinc-100 font-bold text-sm">Today is a rest day</div>
-              <div className="text-xs text-zinc-500 mt-0.5">Walk, stretch, sleep well. Recovery is when you grow.</div>
+              <div className="text-xs text-zinc-500 mt-0.5">
+                Walk, stretch, sleep well. Recovery is when you grow.
+                {nextLift && <> Next: <span className="text-zinc-300 font-semibold">{nextLift.dayLabel} — {nextLift.type}</span></>}
+              </div>
             </div>
           </div>
         );
       }
 
-      if (todayType === "Cardio") {
+      if (todayType === "Cardio" && !showNextSession) {
         return (
           <div className="bg-zinc-900 border border-sky-500/20 rounded-2xl p-4 mb-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-sky-400/10 flex items-center justify-center shrink-0">
@@ -2143,20 +2171,29 @@
 
           <div className="relative z-10">
             <div className="flex items-start justify-between mb-3">
-              <div>
-                <div className="text-lime-400 text-[10px] uppercase tracking-wider font-bold">Today's Plan</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lime-400 text-[10px] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                  {showNextSession ? (
+                    <>
+                      <Check className="w-3 h-3 text-lime-400" strokeWidth={3} />
+                      <span>Today done · Next: {nextLift.dayLabel}</span>
+                    </>
+                  ) : (
+                    <span>Today's Plan</span>
+                  )}
+                </div>
                 <div className="text-zinc-100 font-bold text-lg leading-tight mt-0.5">
-                  {todayType} day · {prescription.length} exercises
+                  {displayType} day · {prescription.length} exercises
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-0.5">
                   {tier === "high" ? "Higher volume" : tier === "moderate" ? "Balanced volume" : "Strength focus"} · ~{Math.round(prescription.reduce((s, p) => s + p.sets, 0) * 2.5 + 5)} min · ~{estimateBurnFromPrescription(prescription, profile?.weight || 75)} kcal
                 </div>
               </div>
-              {alreadyDone ? (
+              {alreadyDone && !showNextSession && (
                 <div className="px-2.5 py-1 rounded-full bg-lime-400 text-zinc-900 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                   <Check className="w-3 h-3" strokeWidth={3} /> Done
                 </div>
-              ) : null}
+              )}
             </div>
 
             {/* Quick exercise list (collapsed) */}
@@ -2212,7 +2249,12 @@
               </div>
             )}
 
-            {!alreadyDone ? (
+            {showNextSession ? (
+              <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-zinc-800/40 text-zinc-500 text-xs">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Tomorrow's preview · come back to start</span>
+              </div>
+            ) : !alreadyDone ? (
               <button onClick={() => setTab("workout")}
                 className="w-full py-2.5 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 text-sm"
                 style={{ background: ACCENT }}>
@@ -2918,14 +2960,54 @@
 
       const days = splitType === "PPL" ? Object.keys(PPL_EXERCISES) : Object.keys(BRO_EXERCISES);
 
-      // Adherence
+      // Adherence — compute status per day: completed / missed / rest / cardio / today / future
       const last14 = useMemo(() => {
+        const totalLoss = Math.max(0.5, profile.startWeight - profile.goalWeight);
+        const weeklyTarget = totalLoss / (profile.durationDays / 7);
+        const tier = weeklyTarget > 0.7 ? "high" : weeklyTarget >= 0.4 ? "moderate" : "low";
+        const plans = {
+          PPL: {
+            high:     ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"],
+            moderate: ["Push", "Pull", "Legs", "Rest", "Push", "Pull", "Cardio"],
+            low:      ["Push", "Cardio", "Pull", "Rest", "Legs", "Cardio", "Rest"],
+          },
+          BRO: {
+            high:     ["Chest", "Back", "Shoulders", "Legs", "Arms", "Cardio", "Rest"],
+            moderate: ["Chest", "Back", "Shoulders", "Rest", "Legs", "Arms", "Cardio"],
+            low:      ["Chest", "Back", "Cardio", "Legs", "Rest", "Arms", "Rest"],
+          },
+        };
+        const planForUser = plans[splitType][tier];
+        const startDateMs = profile.startDate ? new Date(profile.startDate).getTime() : 0;
+
         return Array.from({ length: 14 }, (_, i) => {
-          const d = new Date(Date.now() - (13 - i) * 86400000).toISOString().slice(0, 10);
-          return { date: d, has: workouts.some(w => w.date === d) };
+          const date = new Date(Date.now() - (13 - i) * 86400000);
+          const dateKey = date.toISOString().slice(0, 10);
+          const dow = (date.getDay() + 6) % 7;
+          const dayType = planForUser[dow];
+          const has = workouts.some(w => w.date === dateKey);
+          const isToday = dateKey === today;
+          // Don't penalize days BEFORE the user's plan started
+          const beforeStart = startDateMs && date.getTime() < startDateMs;
+
+          let status;
+          if (beforeStart) status = "before";
+          else if (isToday) status = has ? "completed_today" : "today";
+          else if (dayType === "Rest") status = "rest";
+          else if (dayType === "Cardio") status = has ? "completed" : "cardio";
+          else status = has ? "completed" : "missed";
+
+          return { date: dateKey, has, dayType, status, isToday, weekday: date.toLocaleDateString("en-US", { weekday: "short" })[0] };
         });
-      }, [workouts]);
-      const adherence = Math.round((last14.filter(d => d.has).length / 14) * 100);
+      }, [workouts, splitType, profile.startWeight, profile.goalWeight, profile.durationDays, profile.startDate, today]);
+
+      // Adherence = completed lift days ÷ total scheduled lift days (in window)
+      const adherence = useMemo(() => {
+        const scheduled = last14.filter(d => d.status === "missed" || d.status === "completed" || d.status === "completed_today");
+        if (scheduled.length === 0) return 100;
+        const done = scheduled.filter(d => d.status === "completed" || d.status === "completed_today").length;
+        return Math.round((done / scheduled.length) * 100);
+      }, [last14]);
 
       const startWorkout = (day) => {
         const list = splitType === "PPL" ? PPL_EXERCISES[day] : BRO_EXERCISES[day];
@@ -3083,11 +3165,11 @@
             })}
           </div>
 
-          {/* 14-day consistency */}
+          {/* 14-day consistency timeline */}
           <Card className="mb-4">
             <div className="flex justify-between items-center mb-3">
               <div>
-                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">14-day adherence</div>
+                <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">14-day timeline</div>
                 <div className="text-2xl font-bold text-zinc-100 mono mt-1">{adherence}%</div>
               </div>
               <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
@@ -3096,14 +3178,39 @@
                 {adherence >= 70 ? "Excellent" : adherence >= 50 ? "On track" : "Pick it up"}
               </div>
             </div>
-            <div className="flex gap-1">
-              {last14.map((d, i) => (
-                <div key={i} className="flex-1 aspect-square rounded-md transition"
-                  style={{ background: d.has ? ACCENT : "#27272a" }} title={d.date} />
-              ))}
+
+            {/* Emoji timeline — 🔥 done · 😢 missed · 💤 rest · 🏃 cardio */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {last14.map((d, i) => {
+                const emoji =
+                  d.status === "completed" || d.status === "completed_today" ? "🔥" :
+                  d.status === "missed" ? "😢" :
+                  d.status === "today" ? "⚡" :
+                  d.status === "rest" ? "💤" :
+                  d.status === "cardio" ? "🏃" :
+                  "·"; // before plan started
+                const ringColor =
+                  d.status === "today" ? "ring-2 ring-lime-400" :
+                  d.isToday ? "ring-2 ring-zinc-600" : "";
+                const tooltipMsg = `${d.date} · ${d.dayType}${d.has ? " · ✓ logged" : ""}`;
+                return (
+                  <div key={i}
+                    title={tooltipMsg}
+                    className={`aspect-square rounded-lg bg-zinc-800/60 flex flex-col items-center justify-center gap-0.5 ${ringColor}`}>
+                    <div className="text-base leading-none">{emoji}</div>
+                    <div className="text-[8px] text-zinc-600 uppercase font-bold tracking-wide">{d.weekday}</div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex justify-between text-xs text-zinc-600 mt-2 mono">
-              <span>14d ago</span><span>Today</span>
+
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-zinc-500 mt-3">
+              <span className="flex items-center gap-1"><span>🔥</span>Done</span>
+              <span className="flex items-center gap-1"><span>😢</span>Missed</span>
+              <span className="flex items-center gap-1"><span>💤</span>Rest</span>
+              <span className="flex items-center gap-1"><span>🏃</span>Cardio</span>
+              <span className="flex items-center gap-1"><span>⚡</span>Today</span>
             </div>
           </Card>
 
