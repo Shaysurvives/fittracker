@@ -2120,10 +2120,20 @@
     // ============ BODY DIAGRAM ============
     // Two SVG views (front + back) with named muscle paths.
     // Each path's fill is determined by the muscle's recovery state.
-    function BodyDiagram({ recovery, side = "front" }) {
-      const fill = (m) => colorForRecovery(recovery[m]?.pct ?? 100);
+    // Pass an onMuscleClick callback to make individual muscles tappable.
+    function BodyDiagram({ recovery, side = "front", onMuscleClick }) {
       const stroke = "#27272a";
       const sw = 0.8;
+      // Build interactive props for a given muscle group — color + click + hover
+      const m = (muscle) => ({
+        fill: colorForRecovery(recovery[muscle]?.pct ?? 100),
+        stroke,
+        strokeWidth: sw,
+        style: { cursor: onMuscleClick ? "pointer" : "default", transition: "opacity 0.15s" },
+        onClick: onMuscleClick ? (e) => { e.stopPropagation(); onMuscleClick(muscle); } : undefined,
+        onMouseEnter: onMuscleClick ? (e) => { e.currentTarget.style.opacity = "0.75"; } : undefined,
+        onMouseLeave: onMuscleClick ? (e) => { e.currentTarget.style.opacity = "1"; } : undefined,
+      });
 
       if (side === "front") {
         return (
@@ -2133,35 +2143,35 @@
             {/* Neck */}
             <rect x="46" y="22" width="8" height="4" rx="1" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             {/* Trapezius (front, top) */}
-            <path d="M 38 26 L 50 24 L 62 26 L 60 32 L 50 30 L 40 32 Z" fill={fill("back")} stroke={stroke} strokeWidth={sw} />
+            <path d="M 38 26 L 50 24 L 62 26 L 60 32 L 50 30 L 40 32 Z" {...m("back")} />
             {/* Shoulders (front delts) */}
-            <ellipse cx="32" cy="34" rx="8" ry="6" fill={fill("shoulders")} stroke={stroke} strokeWidth={sw} />
-            <ellipse cx="68" cy="34" rx="8" ry="6" fill={fill("shoulders")} stroke={stroke} strokeWidth={sw} />
+            <ellipse cx="32" cy="34" rx="8" ry="6" {...m("shoulders")} />
+            <ellipse cx="68" cy="34" rx="8" ry="6" {...m("shoulders")} />
             {/* Chest (pecs) */}
-            <path d="M 30 38 Q 40 36 50 38 Q 60 36 70 38 L 68 56 Q 50 60 32 56 Z" fill={fill("chest")} stroke={stroke} strokeWidth={sw} />
+            <path d="M 30 38 Q 40 36 50 38 Q 60 36 70 38 L 68 56 Q 50 60 32 56 Z" {...m("chest")} />
             {/* Biceps */}
-            <ellipse cx="24" cy="52" rx="6" ry="11" fill={fill("biceps")} stroke={stroke} strokeWidth={sw} />
-            <ellipse cx="76" cy="52" rx="6" ry="11" fill={fill("biceps")} stroke={stroke} strokeWidth={sw} />
+            <ellipse cx="24" cy="52" rx="6" ry="11" {...m("biceps")} />
+            <ellipse cx="76" cy="52" rx="6" ry="11" {...m("biceps")} />
             {/* Forearms (just structure) */}
             <rect x="20" y="65" width="6" height="20" rx="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             <rect x="74" y="65" width="6" height="20" rx="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             {/* Abs (core) */}
-            <path d="M 41 58 L 59 58 L 58 90 L 42 90 Z" fill={fill("core")} stroke={stroke} strokeWidth={sw} />
-            <line x1="50" y1="60" x2="50" y2="88" stroke={stroke} strokeWidth={0.4} opacity="0.6" />
-            <line x1="42" y1="68" x2="58" y2="68" stroke={stroke} strokeWidth={0.4} opacity="0.6" />
-            <line x1="42" y1="76" x2="58" y2="76" stroke={stroke} strokeWidth={0.4} opacity="0.6" />
-            <line x1="42" y1="84" x2="58" y2="84" stroke={stroke} strokeWidth={0.4} opacity="0.6" />
+            <path d="M 41 58 L 59 58 L 58 90 L 42 90 Z" {...m("core")} />
+            <line x1="50" y1="60" x2="50" y2="88" stroke={stroke} strokeWidth={0.4} opacity="0.6" pointerEvents="none" />
+            <line x1="42" y1="68" x2="58" y2="68" stroke={stroke} strokeWidth={0.4} opacity="0.6" pointerEvents="none" />
+            <line x1="42" y1="76" x2="58" y2="76" stroke={stroke} strokeWidth={0.4} opacity="0.6" pointerEvents="none" />
+            <line x1="42" y1="84" x2="58" y2="84" stroke={stroke} strokeWidth={0.4} opacity="0.6" pointerEvents="none" />
             {/* Hip / pelvis */}
             <path d="M 38 90 L 62 90 L 60 100 L 40 100 Z" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             {/* Quads */}
-            <ellipse cx="42" cy="120" rx="8" ry="22" fill={fill("quads")} stroke={stroke} strokeWidth={sw} />
-            <ellipse cx="58" cy="120" rx="8" ry="22" fill={fill("quads")} stroke={stroke} strokeWidth={sw} />
+            <ellipse cx="42" cy="120" rx="8" ry="22" {...m("quads")} />
+            <ellipse cx="58" cy="120" rx="8" ry="22" {...m("quads")} />
             {/* Knees */}
             <circle cx="42" cy="146" r="4" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             <circle cx="58" cy="146" r="4" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             {/* Calves (front view: shins, but we color them as calves for simplicity) */}
-            <ellipse cx="42" cy="167" rx="6" ry="16" fill={fill("calves")} stroke={stroke} strokeWidth={sw} />
-            <ellipse cx="58" cy="167" rx="6" ry="16" fill={fill("calves")} stroke={stroke} strokeWidth={sw} />
+            <ellipse cx="42" cy="167" rx="6" ry="16" {...m("calves")} />
+            <ellipse cx="58" cy="167" rx="6" ry="16" {...m("calves")} />
             {/* Feet */}
             <ellipse cx="42" cy="186" rx="5" ry="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
             <ellipse cx="58" cy="186" rx="5" ry="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
@@ -2177,31 +2187,31 @@
           {/* Neck */}
           <rect x="46" y="22" width="8" height="4" rx="1" fill="#52525b" stroke={stroke} strokeWidth={sw} />
           {/* Trapezius (full back trap) */}
-          <path d="M 38 26 L 50 24 L 62 26 L 64 38 L 50 36 L 36 38 Z" fill={fill("back")} stroke={stroke} strokeWidth={sw} />
+          <path d="M 38 26 L 50 24 L 62 26 L 64 38 L 50 36 L 36 38 Z" {...m("back")} />
           {/* Rear delts */}
-          <ellipse cx="32" cy="34" rx="8" ry="6" fill={fill("shoulders")} stroke={stroke} strokeWidth={sw} />
-          <ellipse cx="68" cy="34" rx="8" ry="6" fill={fill("shoulders")} stroke={stroke} strokeWidth={sw} />
+          <ellipse cx="32" cy="34" rx="8" ry="6" {...m("shoulders")} />
+          <ellipse cx="68" cy="34" rx="8" ry="6" {...m("shoulders")} />
           {/* Lats */}
-          <path d="M 32 40 L 68 40 L 66 60 L 50 64 L 34 60 Z" fill={fill("back")} stroke={stroke} strokeWidth={sw} />
+          <path d="M 32 40 L 68 40 L 66 60 L 50 64 L 34 60 Z" {...m("back")} />
           {/* Lower back */}
-          <path d="M 38 64 L 62 64 L 60 80 L 40 80 Z" fill={fill("back")} stroke={stroke} strokeWidth={sw} />
+          <path d="M 38 64 L 62 64 L 60 80 L 40 80 Z" {...m("back")} />
           {/* Triceps */}
-          <ellipse cx="24" cy="52" rx="6" ry="11" fill={fill("triceps")} stroke={stroke} strokeWidth={sw} />
-          <ellipse cx="76" cy="52" rx="6" ry="11" fill={fill("triceps")} stroke={stroke} strokeWidth={sw} />
+          <ellipse cx="24" cy="52" rx="6" ry="11" {...m("triceps")} />
+          <ellipse cx="76" cy="52" rx="6" ry="11" {...m("triceps")} />
           {/* Forearms */}
           <rect x="20" y="65" width="6" height="20" rx="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
           <rect x="74" y="65" width="6" height="20" rx="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
           {/* Glutes */}
-          <path d="M 36 80 Q 42 78 50 79 Q 58 78 64 80 L 65 96 Q 50 100 35 96 Z" fill={fill("glutes")} stroke={stroke} strokeWidth={sw} />
+          <path d="M 36 80 Q 42 78 50 79 Q 58 78 64 80 L 65 96 Q 50 100 35 96 Z" {...m("glutes")} />
           {/* Hamstrings */}
-          <ellipse cx="42" cy="120" rx="8" ry="22" fill={fill("hamstrings")} stroke={stroke} strokeWidth={sw} />
-          <ellipse cx="58" cy="120" rx="8" ry="22" fill={fill("hamstrings")} stroke={stroke} strokeWidth={sw} />
+          <ellipse cx="42" cy="120" rx="8" ry="22" {...m("hamstrings")} />
+          <ellipse cx="58" cy="120" rx="8" ry="22" {...m("hamstrings")} />
           {/* Knees back */}
           <ellipse cx="42" cy="146" rx="4" ry="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
           <ellipse cx="58" cy="146" rx="4" ry="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
           {/* Calves */}
-          <ellipse cx="42" cy="167" rx="6" ry="16" fill={fill("calves")} stroke={stroke} strokeWidth={sw} />
-          <ellipse cx="58" cy="167" rx="6" ry="16" fill={fill("calves")} stroke={stroke} strokeWidth={sw} />
+          <ellipse cx="42" cy="167" rx="6" ry="16" {...m("calves")} />
+          <ellipse cx="58" cy="167" rx="6" ry="16" {...m("calves")} />
           {/* Feet */}
           <ellipse cx="42" cy="186" rx="5" ry="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
           <ellipse cx="58" cy="186" rx="5" ry="3" fill="#52525b" stroke={stroke} strokeWidth={sw} />
@@ -2209,9 +2219,159 @@
       );
     }
 
+    // ============ MUSCLE DETAIL MODAL ============
+    function MuscleDetailModal({ muscle, recovery, workouts, onClose, setTab }) {
+      const r = recovery;
+      const color = colorForRecovery(r.pct);
+
+      // Recent history of training this muscle (last 5 sessions)
+      const history = useMemo(() => {
+        return workouts
+          .slice()
+          .reverse()
+          .filter((w) => countMuscleVolume(w, muscle) > 0)
+          .slice(0, 5)
+          .map((w) => ({
+            date: w.date,
+            day: w.day,
+            sets: +countMuscleVolume(w, muscle).toFixed(1),
+            exercises: w.exercises?.filter((ex) => {
+              const meta = exerciseMetadata(ex.name);
+              return meta && (meta.primary === muscle || meta.secondary?.includes(muscle));
+            }).map((ex) => ex.name) || [],
+          }));
+      }, [workouts, muscle]);
+
+      // Suggested exercises that target this muscle (primary)
+      const suggested = useMemo(() => {
+        return Object.values(EX)
+          .filter((e) => e.primary === muscle)
+          .slice(0, 8);
+      }, [muscle]);
+
+      const hoursUntilReady = r.recoveryHours && r.hoursAgo
+        ? Math.max(0, Math.round(r.recoveryHours - r.hoursAgo))
+        : 0;
+
+      return (
+        <Modal onClose={onClose} title={`${MUSCLE_LABEL[muscle]} Recovery`} fullHeight>
+          {/* Big recovery indicator */}
+          <div className="text-center mb-5">
+            <div className="relative inline-block">
+              <svg width="140" height="140" viewBox="0 0 140 140" className="-rotate-90">
+                <circle cx="70" cy="70" r="60" fill="none" stroke="#27272a" strokeWidth="10" />
+                <circle cx="70" cy="70" r="60" fill="none"
+                  stroke={color} strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={`${(r.pct / 100) * 377} 377`}
+                  style={{ transition: "stroke-dasharray 0.8s ease" }} />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="text-3xl font-bold text-zinc-100 mono">{r.pct}%</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color }}>
+                  {STATUS_LABEL[r.status]}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            <div className="bg-zinc-800/40 rounded-xl p-2.5 text-center">
+              <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Last hit</div>
+              <div className="text-zinc-100 font-bold text-sm mono mt-0.5">
+                {r.hoursAgo === null ? "Never" :
+                  r.hoursAgo < 24 ? `${Math.round(r.hoursAgo)}h ago` :
+                  `${Math.round(r.hoursAgo / 24)}d ago`}
+              </div>
+            </div>
+            <div className="bg-zinc-800/40 rounded-xl p-2.5 text-center">
+              <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Last volume</div>
+              <div className="text-zinc-100 font-bold text-sm mono mt-0.5">
+                {r.sets > 0 ? `${r.sets} sets` : "—"}
+              </div>
+            </div>
+            <div className="bg-zinc-800/40 rounded-xl p-2.5 text-center">
+              <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold">Ready in</div>
+              <div className="text-zinc-100 font-bold text-sm mono mt-0.5">
+                {r.pct >= 100 ? "Now" :
+                  hoursUntilReady < 24 ? `${hoursUntilReady}h` :
+                  `${Math.round(hoursUntilReady / 24)}d`}
+              </div>
+            </div>
+          </div>
+
+          {/* Action button — only show if not ready */}
+          {r.pct >= 90 ? (
+            <button onClick={() => { onClose(); setTab && setTab("workout"); }}
+              className="w-full py-3 rounded-xl font-bold text-zinc-900 flex items-center justify-center gap-2 text-sm mb-5"
+              style={{ background: color }}>
+              <Zap className="w-4 h-4" /> Ready to train — go to workouts
+            </button>
+          ) : (
+            <div className="bg-zinc-800/30 border border-zinc-800 rounded-xl px-3 py-2.5 mb-5 text-center">
+              <div className="text-[11px] text-zinc-400">
+                Give it <span className="font-bold text-zinc-200">{hoursUntilReady < 24 ? `${hoursUntilReady} more hours` : `~${Math.round(hoursUntilReady / 24)} more days`}</span> before training again
+              </div>
+            </div>
+          )}
+
+          {/* Suggested exercises */}
+          {suggested.length > 0 && (
+            <div className="mb-5">
+              <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-2">
+                Exercises that target {MUSCLE_LABEL[muscle].toLowerCase()}
+              </div>
+              <div className="space-y-1.5">
+                {suggested.map((ex) => (
+                  <div key={ex.name} className="bg-zinc-800/40 rounded-lg px-3 py-2 flex items-center justify-between">
+                    <div className="text-[12px] text-zinc-200 truncate">{ex.name}</div>
+                    <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold shrink-0 ml-2">
+                      {ex.role}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent training history */}
+          {history.length > 0 && (
+            <div>
+              <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-2">
+                Recent sessions
+              </div>
+              <div className="space-y-1.5">
+                {history.map((h, i) => (
+                  <div key={i} className="bg-zinc-800/40 rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="text-[12px] text-zinc-100 font-semibold">{h.day} day</div>
+                      <div className="text-[10px] text-zinc-500 mono">{h.date} · {h.sets} sets</div>
+                    </div>
+                    {h.exercises.length > 0 && (
+                      <div className="text-[10px] text-zinc-500 truncate">
+                        {h.exercises.join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {history.length === 0 && (
+            <div className="text-center py-6 text-zinc-500 text-xs">
+              No training history for {MUSCLE_LABEL[muscle].toLowerCase()} yet.<br />
+              Log a workout that hits this muscle to see recovery data.
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
     // ============ MUSCLE RECOVERY CARD ============
     function MuscleRecoveryCard({ workouts, setTab }) {
       const recovery = useMemo(() => calculateMuscleRecovery(workouts), [workouts]);
+      const [selectedMuscle, setSelectedMuscle] = useState(null);
 
       // Sort muscles for the side list (most ready first, then by recovery %)
       const sortedMuscles = useMemo(() => {
@@ -2222,11 +2382,9 @@
       const trainNext = useMemo(() => {
         const candidates = sortedMuscles.filter((m) => recovery[m].pct >= 90 && recovery[m].sets > 0);
         if (candidates.length === 0) {
-          // No prior training data → suggest a major muscle
           const majors = ["chest", "back", "quads"];
           return { muscle: majors[0], reason: "Start training" };
         }
-        // Pick the one that was hit longest ago (most recovered = highest hours since last hit)
         const best = candidates.reduce((b, m) =>
           (recovery[m].hoursAgo || 0) > (recovery[b].hoursAgo || 0) ? m : b, candidates[0]);
         const hoursAgo = recovery[best].hoursAgo;
@@ -2247,52 +2405,56 @@
               </div>
             </div>
             <div className="px-2.5 py-1 rounded-full bg-lime-400/15 text-lime-300 text-[10px] font-bold uppercase tracking-wider">
-              Live
+              Tap to inspect
             </div>
           </div>
 
-          {/* Body diagrams */}
+          {/* Body diagrams — muscles are tappable */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-zinc-800/30 rounded-xl p-2">
               <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold text-center mb-1">Front</div>
-              <BodyDiagram recovery={recovery} side="front" />
+              <BodyDiagram recovery={recovery} side="front" onMuscleClick={setSelectedMuscle} />
             </div>
             <div className="bg-zinc-800/30 rounded-xl p-2">
               <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold text-center mb-1">Back</div>
-              <BodyDiagram recovery={recovery} side="back" />
+              <BodyDiagram recovery={recovery} side="back" onMuscleClick={setSelectedMuscle} />
             </div>
           </div>
 
-          {/* Train next suggestion */}
-          <div className="bg-gradient-to-br from-lime-400/10 to-zinc-900 border border-lime-400/30 rounded-xl p-3 mb-3">
+          {/* Train next suggestion — whole tile is tappable */}
+          <button
+            onClick={() => setSelectedMuscle(trainNext.muscle)}
+            className="w-full bg-gradient-to-br from-lime-400/10 to-zinc-900 border border-lime-400/30 rounded-xl p-3 mb-3 active:scale-[0.99] transition text-left">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
                 <div className="text-[9px] text-lime-400 uppercase tracking-wider font-bold mb-0.5">Train next</div>
                 <div className="text-zinc-100 font-bold text-base capitalize">{MUSCLE_LABEL[trainNext.muscle]}</div>
                 <div className="text-[11px] text-zinc-500 mt-0.5">{trainNext.reason}</div>
               </div>
-              <button onClick={() => setTab && setTab("workout")}
-                className="shrink-0 px-3 py-1.5 rounded-lg bg-lime-400 text-zinc-900 text-xs font-bold flex items-center gap-1">
-                <Zap className="w-3 h-3" /> Train
-              </button>
+              <div className="shrink-0 px-3 py-1.5 rounded-lg bg-lime-400 text-zinc-900 text-xs font-bold flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Details
+              </div>
             </div>
-          </div>
+          </button>
 
-          {/* Muscle list */}
+          {/* Muscle list — each row is tappable */}
           <div className="grid grid-cols-2 gap-1.5">
-            {sortedMuscles.map((m) => {
-              const r = recovery[m];
+            {sortedMuscles.map((mu) => {
+              const r = recovery[mu];
               const color = colorForRecovery(r.pct);
               return (
-                <div key={m} className="bg-zinc-800/40 rounded-lg px-2.5 py-1.5 flex items-center gap-2">
+                <button
+                  key={mu}
+                  onClick={() => setSelectedMuscle(mu)}
+                  className="bg-zinc-800/40 hover:bg-zinc-800/70 active:scale-[0.98] rounded-lg px-2.5 py-1.5 flex items-center gap-2 transition text-left">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[11px] text-zinc-200 font-semibold truncate">{MUSCLE_LABEL[m]}</div>
+                    <div className="text-[11px] text-zinc-200 font-semibold truncate">{MUSCLE_LABEL[mu]}</div>
                     <div className="text-[9px] text-zinc-500 mono">
                       {r.sets > 0 ? `${r.pct}% · ${STATUS_LABEL[r.status]}` : "Fresh"}
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -2304,6 +2466,17 @@
             <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-400" />Fatigued</span>
             <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500" />Trashed</span>
           </div>
+
+          {/* Detail modal */}
+          {selectedMuscle && (
+            <MuscleDetailModal
+              muscle={selectedMuscle}
+              recovery={recovery[selectedMuscle]}
+              workouts={workouts}
+              setTab={setTab}
+              onClose={() => setSelectedMuscle(null)}
+            />
+          )}
         </Card>
       );
     }
