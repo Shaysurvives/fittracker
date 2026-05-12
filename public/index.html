@@ -2396,7 +2396,7 @@
       }, [recovery, sortedMuscles]);
 
       return (
-        <Card className="mb-4">
+        <Card className="mb-4 desktop-span-all">
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Muscle Recovery</div>
@@ -3231,7 +3231,7 @@
           <MuscleRecoveryCard workouts={workouts} setTab={setTab} />
 
           {/* Streak + workout */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-2 gap-3 mb-4 desktop-span-all">
             <Card>
               <div className="flex items-center gap-2 text-zinc-500 text-xs uppercase tracking-wider font-semibold mb-1">
                 <Flame className="w-3.5 h-3.5" style={{ color: "#fb923c" }} /> Streak
